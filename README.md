@@ -333,6 +333,40 @@ docker compose run --rm train python -m training.train_trocr \
     --fp16
 ```
 
+### モデルのバージョン管理と追加学習（継続学習）
+
+モデルのバージョン管理や、既存の学習済みモデル（例: `v1`）をベースにした追加のファインチューニング（`v2`, `v3` ...）は、`--output_dir` と `--base_model` を組み合わせることで簡単に行えます。
+
+#### 1. 初回の学習 (v1)
+ベースモデルから開始し、出力をバージョンごとのディレクトリ（例: `/opt/ml/model/v1`）に保存します。
+```bash
+docker compose run --rm train python -m training.train_trocr \
+    --data_dir /opt/ml/code/data/synthetic/driver_license/ \
+    --output_dir /opt/ml/model/v1 \
+    --base_model microsoft/trocr-base-printed \
+    --epochs 5
+```
+
+#### 2. 追加学習 (v1 から v2 へ)
+前回作成した `v1` モデルを `--base_model` に指定し、新しいデータを追加学習させて `v2` に保存します。
+```bash
+docker compose run --rm train python -m training.train_trocr \
+    --data_dir /opt/ml/code/data/synthetic/driver_license/ \
+    --output_dir /opt/ml/model/v2 \
+    --base_model /opt/ml/model/v1 \
+    --epochs 5
+```
+
+#### 3. 推論時に特定バージョンをロードする
+特定のバージョン（例: `v2`）で推論サーバーを起動する場合は、環境変数 `YOMITORI_MODEL_DIR` で対象のパスを指定します。
+
+`docker-compose.yaml` の `serve` サービスの `YOMITORI_MODEL_DIR` を変更するか、以下のようにコマンド起動時に一時的に上書きします。
+```bash
+docker compose run --rm -p 8080:8080 -e YOMITORI_MODEL_DIR=/opt/ml/model/v2 serve
+```
+
+---
+
 ### 学習後に推論する
 
 ```bash
