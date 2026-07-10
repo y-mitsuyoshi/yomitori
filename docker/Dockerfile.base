@@ -1,0 +1,32 @@
+# docker/Dockerfile.base — Yomitori 共通ベースイメージ
+# RTX 5070 (Blackwell, sm_120) には CUDA 12.8+ が必須のため、
+# NVIDIA CUDA 12.8 ベースイメージ上に PyTorch をインストールする
+FROM nvidia/cuda:12.8.0-cudnn-runtime-ubuntu22.04
+
+LABEL maintainer="Yomitori"
+
+# Python 3.10 + system deps + Japanese fonts
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.10 \
+    python3.10-venv \
+    python3-pip \
+    libgl1 \
+    libglib2.0-0 \
+    git \
+    curl \
+    fonts-noto-cjk \
+    fonts-ipafont \
+    && rm -rf /var/lib/apt/lists/* \
+    && update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1 \
+    && python -m pip install --upgrade pip
+
+# PyTorch (CUDA 12.8 対応版 — RTX 5070 Blackwell 対応)
+RUN python -m pip install --no-cache-dir torch torchvision \
+    --index-url https://download.pytorch.org/whl/cu128
+
+# Python deps
+COPY requirements-docker.txt /tmp/requirements-docker.txt
+RUN python -m pip install --no-cache-dir -r /tmp/requirements-docker.txt
+
+WORKDIR /opt/ml/code
+ENV PYTHONPATH=/opt/ml/code

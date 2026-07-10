@@ -1,14 +1,15 @@
 #!/bin/bash
-# scripts/run_local_test.sh
-# 推論サーバーに対して画像を送信してOCR結果を取得する
+# scripts/infer_client.sh
+# 推論サーバー（serve）に対して画像を送信してOCR結果を取得する
 #
 # 前提: docker compose up serve でサーバーが起動していること
 #
 # Usage:
-#   bash scripts/run_local_test.sh <image_path> [document_type]
+#   bash scripts/infer_client.sh <image_path> [document_type]
 #
 # Example:
-#   bash scripts/run_local_test.sh data/samples/sample_license.jpg
+#   bash scripts/infer_client.sh data/samples/sample_license.jpg
+#   bash scripts/infer_client.sh data/samples/sample_license.jpg driver_license_front
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -18,8 +19,7 @@ DOC_TYPE="${2:-}"
 
 if [ ! -f "$IMAGE" ]; then
     echo "ERROR: Image not found: $IMAGE"
-    echo "Place a sample image at data/samples/ or specify a path:"
-    echo "  bash scripts/run_local_test.sh /path/to/image.jpg"
+    echo "Usage: bash scripts/infer_client.sh <image_path> [document_type]"
     exit 1
 fi
 

@@ -2,8 +2,11 @@
 # ベースイメージ pytorch/pytorch:2.6.0-cuda12.8-cudnn9-runtime に
 # torch / torchvision が含まれるためここでは記載しない
 
+fastapi>=0.110.0
+uvicorn>=0.29.0
 python-doctr>=0.10.0
-transformers>=4.44.0
+transformers>=4.44.0,<5.0.0
+sentencepiece>=0.2.0
 opencv-python-headless>=4.10.0
 Pillow>=10.0.0
 numpy>=1.24.0

@@ -1,24 +1,36 @@
 # docker-compose.yaml — Yomitori 開発・学習・推論環境
 #
 # 使用方法:
-#   docker compose up <service>      # サービスを起動
-#   docker compose run --rm <service> # 1回だけ実行して終了
-#   docker compose build              # イメージ一括ビルド
+#   docker compose build base      # ベースイメージをビルド（初回のみ・重い）
+#   docker compose build            # 全イメージをビルド（ベース前提）
+#   docker compose up serve          # 推論サーバー起動（常駐・ポート8080）
+#   docker compose up notebook      # Jupyter Notebook（ポート8888）
+#   docker compose run --rm <svc>   # 1回だけ実行して終了
 #
-# サービス一覧: dev, generate, train, infer, test, check-licenses, notebook
+# サービス一覧: serve, train, generate, dev, test, check-licenses, notebook
 #
 # ※ restart ポリシーを設定していないため、Docker Desktop / WSL2 起動時に
 #    コンテナが自動で立ち上がることはありません。
 
 services:
-  dev:
+  base:
     build:
       context: .
-      dockerfile: docker/Dockerfile.dev
-    image: yomitori:dev
+      dockerfile: docker/Dockerfile.base
+    image: yomitori:base
+    profiles: ["build-only"]
+
+  serve:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.infer
+    image: yomitori:infer
     volumes:
-      - .:/workspace
+      - .:/opt/ml/code
+      - yomitori-models:/opt/ml/model
       - yomitori-hf-cache:/root/.cache/huggingface
+    ports:
+      - "8080:8080"
     deploy:
       resources:
         reservations:
@@ -27,9 +39,9 @@ services:
               count: all
               capabilities: [gpu]
     environment:
-      - PYTHONPATH=/workspace
-    stdin_open: true
-    tty: true
+      - PYTHONPATH=/opt/ml/code
+      - YOMITORI_MODEL_DIR=/opt/ml/model
+    restart: "no"
 
   generate:
     build:
@@ -37,15 +49,15 @@ services:
       dockerfile: docker/Dockerfile.dev
     image: yomitori:dev
     volumes:
-      - .:/workspace
+      - .:/opt/ml/code
       - yomitori-hf-cache:/root/.cache/huggingface
     environment:
-      - PYTHONPATH=/workspace
+      - PYTHONPATH=/opt/ml/code
     command: >
       python -m training.generate_synthetic_data
       --document_type driver_license_front
       --count 500
-      --output /workspace/data/synthetic/driver_license/
+      --output /opt/ml/code/data/synthetic/driver_license/
 
   train:
     build:
@@ -72,14 +84,13 @@ services:
       --epochs 5
       --batch_size 8
 
-  infer:
+  dev:
     build:
       context: .
-      dockerfile: docker/Dockerfile.infer
-    image: yomitori:infer
+      dockerfile: docker/Dockerfile.dev
+    image: yomitori:dev
     volumes:
       - .:/opt/ml/code
-      - yomitori-models:/opt/ml/model
       - yomitori-hf-cache:/root/.cache/huggingface
     deploy:
       resources:
@@ -90,11 +101,8 @@ services:
               capabilities: [gpu]
     environment:
       - PYTHONPATH=/opt/ml/code
-    command: >
-      python -m src.cli infer
-      --image /opt/ml/code/data/samples/sample_license.jpg
-      --document_type driver_license_front
-      --model_path /opt/ml/model
+    stdin_open: true
+    tty: true
 
   test:
     build:
@@ -102,9 +110,9 @@ services:
       dockerfile: docker/Dockerfile.dev
     image: yomitori:dev
     volumes:
-      - .:/workspace
+      - .:/opt/ml/code
     environment:
-      - PYTHONPATH=/workspace
+      - PYTHONPATH=/opt/ml/code
     command: python -m pytest tests/ -v
 
   check-licenses:
@@ -113,9 +121,9 @@ services:
       dockerfile: docker/Dockerfile.dev
     image: yomitori:dev
     volumes:
-      - .:/workspace
+      - .:/opt/ml/code
     environment:
-      - PYTHONPATH=/workspace
+      - PYTHONPATH=/opt/ml/code
     command: bash scripts/check_licenses.sh
 
   notebook:
@@ -124,19 +132,19 @@ services:
       dockerfile: docker/Dockerfile.dev
     image: yomitori:dev
     volumes:
-      - .:/workspace
+      - .:/opt/ml/code
       - yomitori-hf-cache:/root/.cache/huggingface
     ports:
       - "8888:8888"
     environment:
-      - PYTHONPATH=/workspace
+      - PYTHONPATH=/opt/ml/code
     command: >
       jupyter notebook
       --ip=0.0.0.0
       --port=8888
       --no-browser
       --allow-root
-      --notebook-dir=/workspace/notebooks
+      --notebook-dir=/opt/ml/code/notebooks
 
 volumes:
   yomitori-models:

@@ -1,30 +1,11 @@
-# docker/Dockerfile.dev — Development container for Yomitori
-# Used for: local testing, synthetic data generation, notebooks, interactive dev
-# Base: PyTorch 2.6 + CUDA 12.8
-FROM pytorch/pytorch:2.6.0-cuda12.8-cudnn9-runtime
+# docker/Dockerfile.dev — 開発・テスト・ノートブック用コンテナ
+FROM yomitori:base
 
-LABEL maintainer="Yomitori"
+COPY requirements-dev.txt /tmp/requirements-dev.txt
+RUN pip install --no-cache-dir -r /tmp/requirements-dev.txt
 
-# System deps + Japanese fonts + build tools
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1 \
-    libglib2.0-0 \
-    git \
-    curl \
-    fonts-noto-cjk \
-    fonts-ipafont \
-    && rm -rf /var/lib/apt/lists/*
+COPY . /opt/ml/code/
 
 WORKDIR /workspace
 
-# Copy requirements and install
-COPY requirements-docker.txt /workspace/requirements-docker.txt
-COPY requirements-dev.txt /workspace/requirements-dev.txt
-RUN pip install --no-cache-dir -r requirements-docker.txt
-RUN pip install --no-cache-dir -r requirements-dev.txt
-
-# Copy source (can be overridden by volume mount in docker-compose)
-COPY . /workspace
-
-# Default: bash shell for interactive development
 CMD ["bash"]

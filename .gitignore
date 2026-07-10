@@ -31,3 +31,7 @@ model.tar.gz
 
 # Training data (generated, not tracked)
 data/synthetic/
+
+# Sample images (may contain personal info — never track)
+data/samples/*
+!data/samples/.gitkeep

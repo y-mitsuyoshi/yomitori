@@ -1,29 +1,9 @@
-# docker/Dockerfile.train — SageMaker Training container for Yomitori TrOCR fine-tuning
-# Base: PyTorch 2.6 + CUDA 12.8
-FROM pytorch/pytorch:2.6.0-cuda12.8-cudnn9-runtime
-
-LABEL maintainer="Yomitori"
-
-# System deps + Japanese fonts
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1 \
-    libglib2.0-0 \
-    git \
-    fonts-noto-cjk \
-    fonts-ipafont \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /opt/ml/code
-
-# Copy requirements and install
-COPY requirements-docker.txt /opt/ml/code/requirements-docker.txt
-RUN pip install --no-cache-dir -r requirements-docker.txt
+# docker/Dockerfile.train — TrOCR ファインチューニング用コンテナ
+FROM yomitori:base
 
 # SageMaker Training Toolkit
 RUN pip install --no-cache-dir sagemaker-training
 
-# Copy source
 COPY . /opt/ml/code/
 
-# SageMaker entry point
 ENV SAGEMAKER_PROGRAM="training/train_trocr.py"

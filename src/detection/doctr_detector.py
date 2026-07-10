@@ -48,7 +48,12 @@ class DoctrDetector:
         device: str = "cuda",
         min_score: float = 0.1,
     ) -> None:
+        import torch
         from doctr.models import ocr_predictor
+
+        if device == "cuda" and not torch.cuda.is_available():
+            logger.warning("CUDA not available, falling back to CPU")
+            device = "cpu"
 
         self.device = device
         self.min_score = min_score

@@ -1,31 +1,9 @@
-# docker/Dockerfile.infer — SageMaker Inference container for Yomitori OCR
-# Base: PyTorch 2.6 + CUDA 12.8
-FROM pytorch/pytorch:2.6.0-cuda12.8-cudnn9-runtime
+# docker/Dockerfile.infer — Yomitori OCR 推論サーバー
+# SageMaker互換の /ping, /invocations エンドポイントを提供
+FROM yomitori:base
 
-LABEL maintainer="Yomitori"
-
-# System deps + Japanese fonts + nginx (for serving)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1 \
-    libglib2.0-0 \
-    nginx \
-    fonts-noto-cjk \
-    fonts-ipafont \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /opt/ml/code
-
-# Copy requirements and install
-COPY requirements-docker.txt /opt/ml/code/requirements-docker.txt
-RUN pip install --no-cache-dir -r requirements-docker.txt
-
-# SageMaker Inference Toolkit
-RUN pip install --no-cache-dir sagemaker-inference
-
-# Copy source
 COPY . /opt/ml/code/
 
-# SageMaker inference entry point
-ENV SAGEMAKER_PROGRAM="sagemaker/inference_entry_point.py"
+EXPOSE 8080
 
-CMD ["python", "/opt/ml/code/sagemaker/inference_entry_point.py"]
+CMD ["python", "-m", "sagemaker.serve"]

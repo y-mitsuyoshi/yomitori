@@ -33,6 +33,10 @@ class TrocrRecognizer:
             VisionEncoderDecoderModel,
         )
 
+        if device == "cuda" and not torch.cuda.is_available():
+            logger.warning("CUDA not available, falling back to CPU")
+            device = "cpu"
+
         self.device = device
         self.batch_size = batch_size
         self.processor = TrOCRProcessor.from_pretrained(model_name)
