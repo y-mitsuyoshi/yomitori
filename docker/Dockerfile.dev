@@ -1,11 +1,11 @@
-# docker/Dockerfile.dev — 開発・テスト・ノートブック用コンテナ
+# docker/Dockerfile.dev — 開発・合成データ生成・ノートブック用コンテナ
 FROM yomitori:base
 
 COPY requirements-dev.txt /tmp/requirements-dev.txt
-RUN pip install --no-cache-dir -r /tmp/requirements-dev.txt
+RUN python -m pip install --no-cache-dir -r /tmp/requirements-dev.txt
 
 COPY . /opt/ml/code/
 
-WORKDIR /workspace
+WORKDIR /opt/ml/code
 
 CMD ["bash"]

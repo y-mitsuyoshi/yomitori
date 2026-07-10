@@ -1,33 +1,31 @@
 """HTTP inference server for Yomitori OCR engine.
 
 SageMaker-like serving: start the server with `docker compose up serve`,
-then send POST requests with base64-encoded images.
+then send POST requests with raw image bytes.
 
 Endpoints:
   GET  /ping            — health check
-  POST /invocations      — run OCR on an image (JSON with base64 image)
+  POST /invocations      — run OCR on an image (raw image bytes or JSON with base64)
 """
 
-import base64
 import json
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-_ENGINE = None
 _MODEL = None
 
 
 class InvocationRequest(BaseModel):
-    """Request body for /invocations endpoint.
+    """Request body for /invocations endpoint (JSON mode).
 
     Attributes:
         image: Base64-encoded image data (with or without data URI prefix).
@@ -41,13 +39,12 @@ class InvocationRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Load the OCR engine components at startup."""
-    global _ENGINE, _MODEL
+    global _MODEL
     import torch
 
     from src.detection.doctr_detector import DoctrDetector
     from src.document_types.driver_license import DriverLicenseFront
     from src.document_types.registry import DocumentTypeRegistry
-    from src.pipeline.ocr_engine import OCREngine
     from src.postprocessing.validator import Validator
     from src.recognition.trocr_recognizer import TrocrRecognizer
 
@@ -96,11 +93,15 @@ def ping() -> dict:
 
 
 @app.post("/invocations")
-async def invocations(req: InvocationRequest) -> dict:
-    """Run OCR on a base64-encoded image.
+async def invocations(request: Request) -> dict:
+    """Run OCR on an image.
+
+    Accepts either:
+    - Raw image bytes (Content-Type: image/jpeg or image/png)
+    - JSON with base64-encoded image (Content-Type: application/json)
 
     Args:
-        req: Request body with base64 image and optional document type.
+        request: FastAPI Request object.
 
     Returns:
         OCR result as JSON.
@@ -108,24 +109,37 @@ async def invocations(req: InvocationRequest) -> dict:
     Raises:
         HTTPException: If image decoding or inference fails.
     """
-    import cv2
-    import numpy as np
-
     from src.pipeline.field_extractor import FieldExtractor
     from src.pipeline.ocr_engine import OCREngine
-    from src.utils.image_utils import decode_base64_image
+    from src.utils.image_utils import decode_base64_image, decode_image
 
     if _MODEL is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
 
-    try:
-        image = decode_base64_image(req.image)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to decode image: {e}")
+    content_type = request.headers.get("content-type", "")
+    document_type = None
+
+    if "application/json" in content_type:
+        body = await request.json()
+        if "image" not in body:
+            raise HTTPException(status_code=400, detail="JSON must contain 'image' (base64)")
+        document_type = body.get("document_type")
+        try:
+            image = decode_base64_image(body["image"])
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to decode image: {e}")
+    else:
+        raw = await request.body()
+        if not raw:
+            raise HTTPException(status_code=400, detail="Request body is empty")
+        try:
+            image = decode_image(raw)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to decode image: {e}")
 
     registry = _MODEL["registry"]
-    if req.document_type:
-        doc_type = registry.get_by_id(req.document_type)
+    if document_type:
+        doc_type = registry.get_by_id(document_type)
     else:
         doc_type = registry.detect(image)
 
