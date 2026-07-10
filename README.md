@@ -253,6 +253,28 @@ docker compose down
 
 ## ファインチューニング
 
+TrOCRのベースモデル（`microsoft/trocr-base-printed`）は英語専用です。日本語・多言語に対応させるため、デコーダのトークナイザーを多言語対応のものに差し替えてファインチューニングします。
+
+### 多言語対応の仕組み
+
+```
+TrOCRベースモデル（画像エンコーダはそのまま）
+  ↓
+デコーダのトークナイザーを多言語対応に差し替え
+  ↓
+合成データ（日本語テキスト）でファインチューニング
+  ↓
+多言語テキストを認識できるモデルが完成
+```
+
+### 使用するトークナイザー
+
+| トークナイザー | ライセンス | 対応言語 | 指定方法 |
+|---|---|---|---|
+| `xlm-roberta-base`（デフォルト） | MIT | 100言語（日本語・英語・中国語等） | `--decoder_tokenizer xlm-roberta-base` |
+| `cl-tohoku/bert-base-japanese-v3` | Apache 2.0 | 日本語のみ | `--decoder_tokenizer cl-tohoku/bert-base-japanese-v3` |
+| `bert-base-multilingual-cased` | Apache 2.0 | 多言語 | `--decoder_tokenizer bert-base-multilingual-cased` |
+
 ### 手順
 
 ```bash
@@ -262,14 +284,22 @@ docker compose run --rm dev python -m training.generate_synthetic_data \
     --count 500 \
     --output /opt/ml/code/data/synthetic/driver_license/
 
-# 2. ファインチューニングを実行
+# 2. ファインチューニングを実行（日本語・デフォルト）
 docker compose run --rm train python -m training.train_trocr \
     --data_dir /opt/ml/code/data/synthetic/driver_license/ \
     --output_dir /opt/ml/model \
     --epochs 5 \
     --batch_size 8
 
-# 3. 学習済みモデルを確認
+# 3. 多言語対応でファインチューニングする場合
+docker compose run --rm train python -m training.train_trocr \
+    --data_dir /opt/ml/code/data/synthetic/driver_license/ \
+    --output_dir /opt/ml/model \
+    --decoder_tokenizer xlm-roberta-base \
+    --epochs 5 \
+    --batch_size 8
+
+# 4. 学習済みモデルを確認
 docker compose run --rm dev ls -la /opt/ml/model/
 ```
 
@@ -281,6 +311,8 @@ docker compose run --rm dev ls -la /opt/ml/model/
 |---|---|---|
 | `--data_dir` | (必須) | 学習データディレクトリ（`images/` + `labels.json`） |
 | `--output_dir` | `/opt/ml/model` | モデル保存先 |
+| `--base_model` | `microsoft/trocr-base-printed` | TrOCRベースモデル（画像エンコーダ用） |
+| `--decoder_tokenizer` | `xlm-roberta-base` | デコーダのトークナイザー（多言語対応・MIT ライセンス） |
 | `--batch_size` | `8` | バッチサイズ |
 | `--epochs` | `5` | エポック数 |
 | `--learning_rate` | `5e-5` | 学習率 |
@@ -308,11 +340,16 @@ docker compose run --rm train python -m training.train_trocr \
 docker compose down
 docker compose up -d serve
 
+# 起動完了を待つ（ログで "Application startup complete" を確認）
+docker compose logs -f serve
+
 # 推論
 curl -s -X POST http://localhost:8080/invocations \
     -H "Content-Type: image/jpeg" \
     --data-binary @data/samples/sample_license.jpg | python3 -m json.tool
 ```
+
+学習済みモデルには多言語トークナイザーが保存されているため、推論時に自動的に多言語テキストが認識されます。
 
 ---
 

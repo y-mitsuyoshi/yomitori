@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import Dataset
 
 
-class TrOCRLinedataset(Dataset):
+class TrOCRLineDataset(Dataset):
     """Dataset of cropped text-line images paired with ground-truth text.
 
     Expects a directory with:

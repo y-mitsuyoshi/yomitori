@@ -1,8 +1,11 @@
 """TrOCR fine-tuning script (SageMaker-compatible).
 
 Uses HuggingFace Transformers Trainer API to fine-tune
-``microsoft/trocr-base-printed`` on synthetic Japanese document line crops.
+TrOCR on synthetic document line crops.
 Designed to run on RTX 5070 (12 GB VRAM) with fp16 + gradient checkpointing.
+
+多言語対応: デコーダのトークナイザーを多言語対応のものに差し替えることで、
+日本語・英語・多言語のテキスト認識が可能になる。
 """
 
 import argparse
@@ -10,12 +13,68 @@ import json
 from pathlib import Path
 
 import torch
-from torch.utils.data import DataLoader
 
-from training.dataset import TrOCRLinedataset, collate_fn
+from training.dataset import TrOCRLineDataset, collate_fn
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+def build_multilingual_processor(base_model: str, decoder_tokenizer: str):
+    """多言語対応のTrOCRProcessorを構築する。
+
+    ベースモデルの画像プロセッサー + 多言語トークナイザーを組み合わせる。
+
+    Args:
+        base_model: TrOCRベースモデル名（画像エンコーダ用）。
+        decoder_tokenizer: 多言語対応のデコーダトークナイザー名。
+
+    Returns:
+        TrOCRProcessor インスタンス。
+    """
+    from transformers import AutoTokenizer, TrOCRProcessor, VisionEncoderDecoderModel
+
+    processor = TrOCRProcessor.from_pretrained(base_model)
+    tokenizer = AutoTokenizer.from_pretrained(decoder_tokenizer)
+    processor.tokenizer = tokenizer
+    return processor
+
+
+def build_multilingual_model(base_model: str, decoder_tokenizer: str):
+    """多言語対応のVisionEncoderDecoderModelを構築する。
+
+    ベースモデルのエンコーダ（画像理解）はそのまま使い、
+    デコーダ（テキスト生成）の語彙を多言語トークナイザーに合わせてリサイズする。
+
+    Args:
+        base_model: TrOCRベースモデル名。
+        decoder_tokenizer: 多言語対応のデコーダトークナイザー名。
+
+    Returns:
+        (model, processor) のタプル。
+    """
+    from transformers import (
+        AutoTokenizer,
+        TrOCRProcessor,
+        VisionEncoderDecoderModel,
+    )
+
+    model = VisionEncoderDecoderModel.from_pretrained(base_model)
+    processor = TrOCRProcessor.from_pretrained(base_model)
+    tokenizer = AutoTokenizer.from_pretrained(decoder_tokenizer)
+    processor.tokenizer = tokenizer
+
+    # デコーダの語彙を多言語トークナイザーに合わせてリサイズ
+    model.config.decoder.vocab_size = len(tokenizer)
+    model.decoder.resize_token_embeddings(len(tokenizer))
+
+    # 生成用の設定を更新
+    model.config.pad_token_id = tokenizer.pad_token_id
+    model.config.decoder_start_token_id = tokenizer.bos_token_id or tokenizer.cls_token_id
+    model.config.eos_token_id = tokenizer.eos_token_id or tokenizer.sep_token_id
+    model.config.vocab_size = len(tokenizer)
+
+    return model, processor
 
 
 def compute_cer(eval_pred, processor) -> dict:
@@ -29,12 +88,11 @@ def compute_cer(eval_pred, processor) -> dict:
         Dict with ``cer`` metric.
     """
     import jiwer
-    from transformers import EvalPrediction
 
     predictions, labels = eval_pred
     pred_texts = processor.batch_decode(predictions, skip_special_tokens=True)
-    label_ids = labels[label_ids != -100] if hasattr(labels, "__getitem__") else labels  # type: ignore
-    ref_texts = processor.batch_decode([label_ids], skip_special_tokens=True)  # type: ignore
+    label_ids = labels[label_ids != -100] if hasattr(labels, "__getitem__") else labels
+    ref_texts = processor.batch_decode([label_ids], skip_special_tokens=True)
 
     cer = jiwer.cer(ref_texts, pred_texts) if len(ref_texts) == len(pred_texts) else float("nan")
     return {"cer": cer}
@@ -46,11 +104,24 @@ def main() -> int:
     Returns:
         Exit code.
     """
-    parser = argparse.ArgumentParser(description="Fine-tune TrOCR")
+    parser = argparse.ArgumentParser(description="Fine-tune TrOCR (multilingual)")
     parser.add_argument("--data_dir", type=str, required=True, help="Training data dir")
     parser.add_argument("--eval_dir", type=str, default=None, help="Eval data dir")
     parser.add_argument("--output_dir", type=str, default="/opt/ml/model")
-    parser.add_argument("--base_model", type=str, default="microsoft/trocr-base-printed")
+    parser.add_argument(
+        "--base_model",
+        type=str,
+        default="microsoft/trocr-base-printed",
+        help="TrOCR base model (encoder + image processor)",
+    )
+    parser.add_argument(
+        "--decoder_tokenizer",
+        type=str,
+        default="xlm-roberta-base",
+        help="Decoder tokenizer for multilingual support "
+             "(default: xlm-roberta-base, 100 languages, MIT license). "
+             "Alternatives: 'cl-tohoku/bert-base-japanese-v3' (Japanese only, Apache 2.0)",
+    )
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--learning_rate", type=float, default=5e-5)
@@ -63,29 +134,21 @@ def main() -> int:
 
     torch.manual_seed(args.seed)
 
-    from transformers import (
-        Seq2SeqTrainer,
-        Seq2SeqTrainingArguments,
-        TrOCRProcessor,
-        VisionEncoderDecoderModel,
-    )
+    logger.info("Building multilingual model:")
+    logger.info("  Encoder: %s", args.base_model)
+    logger.info("  Decoder tokenizer: %s", args.decoder_tokenizer)
 
-    processor = TrOCRProcessor.from_pretrained(args.base_model)
-    model = VisionEncoderDecoderModel.from_pretrained(args.base_model)
-
-    # Configure for generation
-    model.config.pad_token_id = processor.tokenizer.pad_token_id
-    model.config.decoder_start_token_id = processor.tokenizer.bos_token_id
-    model.config.eos_token_id = processor.tokenizer.eos_token_id
-    model.config.vocab_size = model.config.decoder.vocab_size
+    model, processor = build_multilingual_model(args.base_model, args.decoder_tokenizer)
 
     if args.gradient_checkpointing:
         model.encoder.gradient_checkpointing_enable()
 
-    train_ds = TrOCRLinedataset(args.data_dir, processor)
+    train_ds = TrOCRLineDataset(args.data_dir, processor)
     eval_ds = None
     if args.eval_dir:
-        eval_ds = TrOCRLinedataset(args.eval_dir, processor)
+        eval_ds = TrOCRLineDataset(args.eval_dir, processor)
+
+    from transformers import Seq2SeqTrainer, Seq2SeqTrainingArguments
 
     training_args = Seq2SeqTrainingArguments(
         output_dir=args.output_dir,
@@ -122,7 +185,6 @@ def main() -> int:
     trainer.save_model(args.output_dir)
     processor.save_pretrained(args.output_dir)
 
-    # Save training metadata
     with (Path(args.output_dir) / "training_info.json").open("w") as f:
         json.dump(vars(args), f, indent=2)
 

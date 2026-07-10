@@ -1,6 +1,9 @@
-"""TrOCR-based text recognition wrapper."""
+"""TrOCR-based text recognition wrapper.
 
-import logging
+多言語対応: ファインチューニング済みモデルは多言語トークナイザーを内蔵しているため、
+推論時に自動的に多言語テキストを認識できる。
+"""
+
 from typing import Optional
 
 import numpy as np
@@ -17,6 +20,8 @@ class TrocrRecognizer:
         model_name: HuggingFace model name for the base model.
         device: ``"cuda"`` or ``"cpu"``.
         finetuned_path: Optional path to a fine-tuned model directory.
+            ファインチューニング済みモデルの場合、多言語トークナイザーが
+            保存されているため自動的に多言語対応になる。
         batch_size: Batch size for batch recognition.
     """
 
@@ -39,13 +44,14 @@ class TrocrRecognizer:
 
         self.device = device
         self.batch_size = batch_size
-        self.processor = TrOCRProcessor.from_pretrained(model_name)
 
         if finetuned_path:
             logger.info("Loading fine-tuned TrOCR from %s", finetuned_path)
+            self.processor = TrOCRProcessor.from_pretrained(finetuned_path)
             self.model = VisionEncoderDecoderModel.from_pretrained(finetuned_path)
         else:
             logger.info("Loading base TrOCR model: %s", model_name)
+            self.processor = TrOCRProcessor.from_pretrained(model_name)
             self.model = VisionEncoderDecoderModel.from_pretrained(model_name)
 
         self.model.to(device)
@@ -78,11 +84,9 @@ class TrocrRecognizer:
                 return_dict_in_generate=True,
             )
 
-        # Decode text
         text = self.processor.batch_decode(generated.sequences, skip_special_tokens=True)[0]
 
-        # Estimate confidence from mean token score
-        scores = generated.scores  # tuple of tensors
+        scores = generated.scores
         if scores:
             probs = [self._torch.softmax(s, dim=-1) for s in scores]
             max_probs = [p.max().item() for p in probs]
@@ -125,10 +129,8 @@ class TrocrRecognizer:
                 generated.sequences, skip_special_tokens=True
             )
 
-            # Compute per-sample confidence
             scores = generated.scores
             if scores:
-                # scores[i] shape: (batch, vocab)
                 seq_len = len(scores)
                 for j in range(len(batch)):
                     max_probs = []
