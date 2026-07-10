@@ -1,0 +1,1 @@
+../../.shared-agents/prompts/project-manager.md

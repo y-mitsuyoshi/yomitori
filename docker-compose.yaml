@@ -1,0 +1,143 @@
+# docker-compose.yaml — Yomitori 開発・学習・推論環境
+#
+# 使用方法:
+#   docker compose up <service>      # サービスを起動
+#   docker compose run --rm <service> # 1回だけ実行して終了
+#   docker compose build              # イメージ一括ビルド
+#
+# サービス一覧: dev, generate, train, infer, test, check-licenses, notebook
+#
+# ※ restart ポリシーを設定していないため、Docker Desktop / WSL2 起動時に
+#    コンテナが自動で立ち上がることはありません。
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    image: yomitori:dev
+    volumes:
+      - .:/workspace
+      - yomitori-hf-cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - PYTHONPATH=/workspace
+    stdin_open: true
+    tty: true
+
+  generate:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    image: yomitori:dev
+    volumes:
+      - .:/workspace
+      - yomitori-hf-cache:/root/.cache/huggingface
+    environment:
+      - PYTHONPATH=/workspace
+    command: >
+      python -m training.generate_synthetic_data
+      --document_type driver_license_front
+      --count 500
+      --output /workspace/data/synthetic/driver_license/
+
+  train:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.train
+    image: yomitori:train
+    volumes:
+      - .:/opt/ml/code
+      - yomitori-models:/opt/ml/model
+      - yomitori-hf-cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - PYTHONPATH=/opt/ml/code
+    command: >
+      python -m training.train_trocr
+      --data_dir /opt/ml/code/data/synthetic/driver_license/
+      --output_dir /opt/ml/model
+      --epochs 5
+      --batch_size 8
+
+  infer:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.infer
+    image: yomitori:infer
+    volumes:
+      - .:/opt/ml/code
+      - yomitori-models:/opt/ml/model
+      - yomitori-hf-cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - PYTHONPATH=/opt/ml/code
+    command: >
+      python -m src.cli infer
+      --image /opt/ml/code/data/samples/sample_license.jpg
+      --document_type driver_license_front
+      --model_path /opt/ml/model
+
+  test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    image: yomitori:dev
+    volumes:
+      - .:/workspace
+    environment:
+      - PYTHONPATH=/workspace
+    command: python -m pytest tests/ -v
+
+  check-licenses:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    image: yomitori:dev
+    volumes:
+      - .:/workspace
+    environment:
+      - PYTHONPATH=/workspace
+    command: bash scripts/check_licenses.sh
+
+  notebook:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    image: yomitori:dev
+    volumes:
+      - .:/workspace
+      - yomitori-hf-cache:/root/.cache/huggingface
+    ports:
+      - "8888:8888"
+    environment:
+      - PYTHONPATH=/workspace
+    command: >
+      jupyter notebook
+      --ip=0.0.0.0
+      --port=8888
+      --no-browser
+      --allow-root
+      --notebook-dir=/workspace/notebooks
+
+volumes:
+  yomitori-models:
+  yomitori-hf-cache:

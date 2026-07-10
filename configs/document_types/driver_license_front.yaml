@@ -1,0 +1,83 @@
+# 運転免許証（表面）
+# configs/document_types/driver_license_front.yaml
+document_type_id: "driver_license_front"
+card_aspect_ratio: 1.585
+normalized_size: [2400, 1512]
+card_type: "card"  # card | passport | document
+
+zones:
+  name:
+    x0: 0.00
+    y0: 0.00
+    x1: 0.55
+    y1: 0.12
+    label: "氏名"
+    label_remove: true
+  birth_date:
+    x0: 0.45
+    y0: 0.00
+    x1: 0.80
+    y1: 0.12
+    label: "生年月日"
+    label_remove: true
+    date_format: "japanese_era"
+  address:
+    x0: 0.00
+    y0: 0.12
+    x1: 0.70
+    y1: 0.26
+    label: "住所"
+    label_remove: true
+    normalize: "fullwidth_to_halfwidth"
+  issue_date:
+    x0: 0.00
+    y0: 0.26
+    x1: 0.70
+    y1: 0.33
+    label: "交付"
+    label_remove: true
+    date_format: "japanese_era"
+  expiry_date:
+    x0: 0.00
+    y0: 0.33
+    x1: 0.70
+    y1: 0.40
+    label: "有効期限"
+    label_remove: true
+    date_format: "japanese_era"
+  conditions:
+    x0: 0.00
+    y0: 0.40
+    x1: 0.70
+    y1: 0.56
+    label: "条件等"
+    label_remove: true
+  license_number:
+    x0: 0.00
+    y0: 0.60
+    x1: 0.70
+    y1: 0.78
+    label: "免許証番号"
+    label_remove: true
+    whitelist: "0123456789"
+  license_type:
+    x0: 0.00
+    y0: 0.78
+    x1: 0.70
+    y1: 0.90
+    label: "免許種類"
+    label_remove: true
+
+validation:
+  license_number:
+    pattern: "^[0-9]{12}$"
+    description: "12桁の数字"
+    required: true
+  birth_date:
+    pattern: "^(昭和|平成|令和)[0-9]+年[0-9]+月[0-9]+日"
+    description: "和暦生年月日"
+    required: true
+  expiry_date:
+    pattern: "^(昭和|平成|令和)[0-9]+年[0-9]+月[0-9]+日"
+    description: "和暦有効期限"
+    required: true

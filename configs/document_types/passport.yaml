@@ -1,0 +1,9 @@
+# パスポート
+# TODO: 将来実装 — Actual zone definitions and validation rules
+document_type_id: "passport"
+card_aspect_ratio: 1.414  # ISO/IEC 7810 ID-3
+normalized_size: [2000, 1414]
+card_type: "passport"
+
+zones: {}
+validation: {}

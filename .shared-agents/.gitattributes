@@ -1,0 +1,8 @@
+# Symlink handling for GitHub
+# Git stores symlinks natively; this ensures they're checked out correctly
+# on all platforms. Windows requires core.symlinks=true in git config.
+.shared-agents/**/*.md text=auto
+
+# Ensure symlinks in tool config directories are preserved
+.opencode/agents/**/*.md text=auto
+.claude/rules/**/*.md text=auto

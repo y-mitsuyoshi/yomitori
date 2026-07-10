@@ -1,0 +1,50 @@
+# Yomitori エンジン全体設定
+# 全ての設定値はここに外出しする（ハードコーディング禁止）
+
+engine:
+  # デバイス設定（"cuda" または "cpu"）
+  device: "cuda"
+
+# docTR 文字領域検出設定
+detection:
+  # アーキテクチャ: db_resnet50, db_mobilenet_v3_large 等
+  det_arch: "db_resnet50"
+  # 直線ページを仮定（倾斜補正を内部で行う）
+  assume_straight_pages: true
+  # 検出スコア閾値
+  min_score: 0.1
+
+# TrOCR 文字認識設定
+recognition:
+  # ベースモデル名
+  model_name: "microsoft/trocr-base-printed"
+  # ファインチューニング済みモデルパス（Noneならベースモデル使用）
+  finetuned_path: null
+  # バッチサイズ（GPU推論）
+  batch_size: 8
+  # 信頼度閾値（これ未満は low_confidence）
+  confidence_threshold: 0.7
+
+# 前処理設定
+preprocessing:
+  # 輪郭面積の画像全体に対する最小割合（これ未満なら補正失敗）
+  min_contour_area_ratio: 0.30
+  # approxPolyDP の epsilon 係数初期値
+  epsilon_factor: 0.02
+  # epsilon の探索範囲
+  epsilon_min: 0.01
+  epsilon_max: 0.15
+  # epsilon の探索ステップ
+  epsilon_step: 0.005
+
+# フィールド分類設定
+field_extractor:
+  # 第2パス最近傍ゾーンのマージン
+  margin: 0.04
+
+# 出力設定
+output:
+  # ステータス定数
+  status_success: "success"
+  status_partial: "partial"
+  status_failed: "failed"

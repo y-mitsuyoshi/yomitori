@@ -1,0 +1,6 @@
+# Symlink handling for cross-platform compatibility
+# Git stores symlinks natively. Windows users need:
+#   git config --global core.symlinks true
+.opencode/agents/**/*.md text=auto
+.claude/rules/**/*.md text=auto
+.shared-agents/**/*.md text=auto

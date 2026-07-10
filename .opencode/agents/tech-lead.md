@@ -1,0 +1,1 @@
+../../.shared-agents/prompts/tech-lead.md

@@ -1,0 +1,77 @@
+{
+  "name": "yomitori",
+  "description": "Yomitori: 日本の身分証明書類向けMLベースOCRエンジン",
+  "agents": {
+    "architect": {
+      "role": "Domain Architect",
+      "prompt": ".shared-agents/prompts/architect.md",
+      "model": "gemini-3.5-flash"
+    },
+    "architect-reviewer": {
+      "role": "Architecture Reviewer",
+      "prompt": ".shared-agents/prompts/architect-reviewer.md",
+      "model": "gemini-3.5-flash"
+    },
+    "implementer": {
+      "role": "Implementer",
+      "prompt": ".shared-agents/prompts/implementer.md",
+      "model": "gemini-3.5-flash"
+    },
+    "implementer-reviewer": {
+      "role": "Code Reviewer",
+      "prompt": ".shared-agents/prompts/implementer-reviewer.md",
+      "model": "gemini-3.5-flash"
+    },
+    "doc-reviewer": {
+      "role": "Documentation Reviewer",
+      "prompt": ".shared-agents/prompts/doc-reviewer.md",
+      "model": "gemini-3.5-flash"
+    },
+    "security-reviewer": {
+      "role": "Security Reviewer",
+      "prompt": ".shared-agents/prompts/security-reviewer.md",
+      "model": "gemini-3.5-flash"
+    },
+    "uiux-implementer": {
+      "role": "UI/UX Developer",
+      "prompt": ".shared-agents/prompts/uiux-implementer.md",
+      "model": "gemini-3.5-flash"
+    },
+    "uiux-reviewer": {
+      "role": "UI/UX Reviewer",
+      "prompt": ".shared-agents/prompts/uiux-reviewer.md",
+      "model": "gemini-3.5-flash"
+    },
+    "qa-engineer": {
+      "role": "QA Engineer",
+      "prompt": ".shared-agents/prompts/qa-engineer.md",
+      "model": "gemini-3.5-flash"
+    },
+    "tech-lead": {
+      "role": "Tech Lead",
+      "prompt": ".shared-agents/prompts/tech-lead.md",
+      "model": "gemini-3.5-flash"
+    },
+    "data-analyst": {
+      "role": "Data Analyst",
+      "prompt": ".shared-agents/prompts/data-analyst.md",
+      "model": "gemini-3.5-flash"
+    },
+    "prd-manager": {
+      "role": "Product Manager",
+      "prompt": ".shared-agents/prompts/prd-manager.md",
+      "model": "gemini-3.5-flash"
+    },
+    "sre": {
+      "role": "SRE",
+      "prompt": ".shared-agents/prompts/sre.md",
+      "model": "gemini-3.5-flash"
+    },
+    "project-manager": {
+      "role": "Project Manager",
+      "prompt": ".shared-agents/prompts/project-manager.md",
+      "model": "gemini-3.5-flash"
+    }
+  },
+  "hooks": {}
+}

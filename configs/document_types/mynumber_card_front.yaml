@@ -1,0 +1,9 @@
+# マイナンバーカード（表面）
+# TODO: 将来実装 — Actual zone definitions and validation rules
+document_type_id: "mynumber_card_front"
+card_aspect_ratio: 1.585
+normalized_size: [2400, 1512]
+card_type: "card"
+
+zones: {}
+validation: {}
