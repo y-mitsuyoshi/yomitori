@@ -423,35 +423,61 @@ docker compose run --rm -v /var/run/docker.sock:/var/run/docker.sock dev \
 
 ## クラウドへのデプロイ
 
-### 1. モデルの S3 アップロード
+SageMaker クラウドにデプロイする手順です。カスタム Docker イメージ（`yomitori:infer`）を ECR にプッシュし、`model.tar.gz` を S3 にアップロードしてエンドポイントを構築します。
+
+### 1. model.tar.gz を作成
 
 ```bash
-# model.tar.gz を作成
 docker compose run --rm dev bash -c "cd /opt/ml/model && tar czf /opt/ml/code/model.tar.gz ."
+```
 
-# S3 にアップロード
+### 2. S3 にモデルをアップロード
+
+```bash
 aws s3 cp model.tar.gz s3://your-bucket/yomitori/model.tar.gz
 ```
 
-### 2. クラウドデプロイ
+### 3. ECR に Docker イメージをプッシュ
+
+```bash
+# ECR リポジトリを作成
+aws ecr create-repository --repository-name yomitori
+
+# ログイン
+aws ecr get-login-password | docker login --username AWS --password-stdin <account-id>.dkr.ecr.<region>.amazonaws.com
+
+# イメージにタグを付けてプッシュ
+docker tag yomitori:infer <account-id>.dkr.ecr.<region>.amazonaws.com/yomitori:infer
+docker push <account-id>.dkr.ecr.<region>.amazonaws.com/yomitori:infer
+```
+
+### 4. エンドポイントをデプロイ
 
 ```bash
 python -m sagemaker.cloud_deploy \
     --model_data s3://your-bucket/yomitori/model.tar.gz \
+    --ecr_image <account-id>.dkr.ecr.<region>.amazonaws.com/yomitori:infer \
+    --role arn:aws:iam::<account-id>:role/service-role/AmazonSageMaker-ExecutionRole \
     --instance_type ml.g5.xlarge
 ```
 
-### 3. エンドポイントのテスト
+### 5. エンドポイントのテスト
 
 ```python
 from sagemaker.predictor import Predictor
-import json, base64
+from sagemaker.serializers import DataSerializer
+import json
 
 predictor = Predictor(endpoint_name="<エンドポイント名>")
+predictor.serializer = DataSerializer(content_type="image/jpeg")
+
 with open("data/samples/sample_license.jpg", "rb") as f:
-    result = predictor.predict(f.read(), initial_args={"ContentType": "image/jpeg"})
+    result = predictor.predict(f.read())
+
 print(json.dumps(json.loads(result), ensure_ascii=False, indent=2))
 ```
+
+> **注意:** SageMaker の PyTorch プリビルドイメージには docTR・TrOCR・CUDA 12.8 が含まれていないため、カスタム Docker イメージ（`yomitori:infer`）を ECR にプッシュして使用します。
 
 ---
 

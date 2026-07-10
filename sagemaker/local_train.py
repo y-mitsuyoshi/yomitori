@@ -7,7 +7,18 @@ Prerequisites:
   - Synthetic data generated at data/synthetic/driver_license/
 """
 
+import sys
 from pathlib import Path
+
+# プロジェクト内の sagemaker/ ディレクトリが SageMaker SDK と同名で衝突するのを防ぐ
+_sdk_path = "/usr/local/lib/python3.10/dist-packages"
+if _sdk_path not in sys.path:
+    sys.path.insert(0, _sdk_path)
+for mod in list(sys.modules):
+    if mod.startswith("sagemaker") and not mod.startswith("sagemaker.local"):
+        mod_obj = sys.modules.get(mod)
+        if mod_obj and "/opt/ml/code" in getattr(mod_obj, "__file__", ""):
+            del sys.modules[mod]
 
 from src.utils.logger import get_logger
 

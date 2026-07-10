@@ -121,10 +121,7 @@ def output_fn(prediction: dict, accept: str) -> str | bytes:
 
     Returns:
         Serialized response.
-
-    Raises:
-        ValueError: For unsupported accept types.
     """
-    if accept == "application/json":
-        return json.dumps(prediction, ensure_ascii=False, indent=2)
+    if accept in ("application/json", "text/html", "*/*", ""):
+        return json.dumps(prediction, ensure_ascii=False)
     raise ValueError(f"Unsupported accept type: {accept}")

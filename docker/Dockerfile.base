@@ -29,4 +29,6 @@ COPY requirements-docker.txt /tmp/requirements-docker.txt
 RUN python -m pip install --no-cache-dir -r /tmp/requirements-docker.txt
 
 WORKDIR /opt/ml/code
-ENV PYTHONPATH=/opt/ml/code
+
+# プロジェクト内の sagemaker/ ディレクトリが SageMaker SDK と同名で衝突するのを防ぐ
+RUN echo "import sys; sys.path.insert(0, '/usr/local/lib/python3.10/dist-packages')" > /usr/local/lib/python3.10/dist-packages/sitecustomize.py

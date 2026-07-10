@@ -1,13 +1,10 @@
 # docker/Dockerfile.train — TrOCR ファインチューニング用コンテナ
 FROM yomitori:base
 
-RUN python -m pip install --no-cache-dir sagemaker-training
-
 COPY . /opt/ml/code/
 
 ENV SAGEMAKER_PROGRAM="training/train_trocr.py"
 
-# デフォルトの学習パラメータ（環境変数で上書き可能）
 CMD ["python", "-m", "training.train_trocr", \
      "--data_dir", "/opt/ml/code/data/synthetic/driver_license/", \
      "--output_dir", "/opt/ml/model", \

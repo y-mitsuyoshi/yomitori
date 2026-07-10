@@ -8,7 +8,20 @@ Prerequisites:
 """
 
 import json
+import sys
 from pathlib import Path
+
+# プロジェクト内の sagemaker/ ディレクトリが SageMaker SDK と同名で衝突するのを防ぐ
+# site-packages を優先して読み込む
+_sdk_path = "/usr/local/lib/python3.10/dist-packages"
+if _sdk_path not in sys.path:
+    sys.path.insert(0, _sdk_path)
+# プロジェクトの sagemaker パッケージがキャッシュされていれば削除
+for mod in list(sys.modules):
+    if mod.startswith("sagemaker") and not mod.startswith("sagemaker.local"):
+        mod_obj = sys.modules.get(mod)
+        if mod_obj and "/opt/ml/code" in getattr(mod_obj, "__file__", ""):
+            del sys.modules[mod]
 
 from src.utils.logger import get_logger
 
@@ -32,10 +45,22 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    import boto3
     from sagemaker.local import LocalSession
     from sagemaker.pytorch import PyTorchModel
 
-    sagemaker_session = LocalSession()
+    boto_session = boto3.Session(
+        aws_access_key_id="dummy",
+        aws_secret_access_key="dummy",
+        region_name="us-east-1",
+    )
+    # STS の GetCallerIdentity をモック（Local Mode では AWS アカウント不要）
+    sts_client = boto_session.client("sts")
+    original_get_caller_identity = sts_client.get_caller_identity
+    sts_client.get_caller_identity = lambda: {"Account": "000000000000"}
+    boto_session.client = lambda service_name, **kw: sts_client if service_name == "sts" else boto3.client(service_name, **kw)
+
+    sagemaker_session = LocalSession(boto_session=boto_session)
     sagemaker_session.config = {"local": {"local_code": True}}
 
     project_root = Path(__file__).resolve().parent.parent
@@ -57,8 +82,7 @@ def main() -> None:
         role="arn:aws:iam::111111111111:role/service-role/AmazonSageMaker-ExecutionRole-Dummy",
         entry_point="sagemaker/inference_entry_point.py",
         source_dir=str(project_root),
-        framework_version="2.6",
-        py_version="py310",
+        image_uri="yomitori:infer",
     )
 
     predictor = model.deploy(

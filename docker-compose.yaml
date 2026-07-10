@@ -17,6 +17,28 @@ services:
     image: yomitori:base
     profiles: ["build-only"]
 
+  dev:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    image: yomitori:dev
+    volumes:
+      - .:/opt/ml/code
+      - yomitori-models:/opt/ml/model
+      - yomitori-hf-cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - PYTHONPATH=/usr/local/lib/python3.10/dist-packages:/opt/ml/code
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=dummy
+      - AWS_SECRET_ACCESS_KEY=dummy
+
   serve:
     build:
       context: .
