@@ -362,19 +362,62 @@ docker compose up notebook
 
 ## SageMaker Local Mode での検証
 
-SageMaker Local Mode を使用すると、ローカルの Docker 環境で SageMaker と同等の学習・推論パイプラインを検証できます。
+SageMaker Local Mode を使用すると、ローカルの Docker 環境で SageMaker と同等の学習・推論パイプラインを検証できます。クラウドへ移行する前に、Local Mode で最終検証することを推奨します。
+
+### `docker compose up serve` との違い
+
+| | `docker compose up serve` | SageMaker Local Mode |
+|---|---|---|
+| 用途 | 開発・迅速な検証 | クラウド移行前の最終検証 |
+| 仕組み | FastAPI サーバーが直接推論 | SageMaker SDK がコンテナを構築・実行 |
+| クラウド互換性 | なし | あり（`instance_type` を変更するだけでクラウドへ移行） |
+| エンドポイント | `/ping`, `/invocations` | SageMaker Predictor API |
+
+### 前提条件
+
+- Docker ソケットがマウント可能であること
+- 合成データが `data/synthetic/driver_license/` に生成済みであること
+
+### ステップ1: 学習（Local Mode）
+
+SageMaker SDK 経由で学習コンテナを構築し、学習を実行します。
 
 ```bash
-# 学習
 docker compose run --rm -v /var/run/docker.sock:/var/run/docker.sock dev \
     python -m sagemaker.local_train
+```
 
-# デプロイ + テスト推論
+学習完了後、モデルアーティファクトが作成されます。
+
+### ステップ2: model.tar.gz を作成
+
+SageMaker はモデルを `model.tar.gz` 形式で扱います。Docker ボリュームから取り出して圧縮します。
+
+```bash
+docker compose run --rm dev bash -c "cd /opt/ml/model && tar czf /opt/ml/code/model.tar.gz ."
+```
+
+### ステップ3: エンドポイントをデプロイ + サンプル画像で推論
+
+SageMaker SDK 経由でローカルエンドポイントを構築し、サンプル画像の推論を実行します。
+
+```bash
 docker compose run --rm -v /var/run/docker.sock:/var/run/docker.sock dev \
     python -m sagemaker.local_deploy --sample data/samples/sample_license.jpg
 ```
 
-> **注意:** SageMaker Local Mode は Docker-in-Docker を使用するため、ホストの Docker ソケットをマウントします。
+推論結果がJSONで標準出力されます。
+
+### ステップ4: 別の画像で推論（任意）
+
+`--sample` オプションで任意の画像を指定できます。
+
+```bash
+docker compose run --rm -v /var/run/docker.sock:/var/run/docker.sock dev \
+    python -m sagemaker.local_deploy --sample data/samples/sample_license2.jpg
+```
+
+> **注意:** SageMaker Local Mode は Docker-in-Docker を使用するため、ホストの Docker ソケット (`/var/run/docker.sock`) をマウントしています。
 
 ---
 

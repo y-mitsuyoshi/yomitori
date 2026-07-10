@@ -7,7 +7,6 @@ Prerequisites:
   - Docker installed and Docker socket accessible
 """
 
-import base64
 import json
 from pathlib import Path
 
@@ -41,21 +40,17 @@ def main() -> None:
 
     project_root = Path(__file__).resolve().parent.parent
 
-    # SageMaker Local Mode は model_data として tar.gz を期待する
-    # local_train.py の実行結果 (S3 local file path) を使用
-    # 手動デプロイの場合は model.tar.gz を指定
+    # model.tar.gz を探す
     model_tar = project_root / "model.tar.gz"
     if model_tar.exists():
         model_data = f"file://{model_tar}"
     else:
-        # local_train の結果を利用
-        model_data = str(project_root / "data" / "model.tar.gz")
-        if not Path(model_data.replace("file://", "")).exists():
-            logger.error(
-                "Model artifact not found. Run local_train first, "
-                "or create model.tar.gz from your trained model."
-            )
-            raise FileNotFoundError("model.tar.gz not found")
+        logger.error(
+            "model.tar.gz not found. Create it first:\n"
+            "  docker compose run --rm dev bash -c "
+            "\"cd /opt/ml/model && tar czf /opt/ml/code/model.tar.gz .\""
+        )
+        raise FileNotFoundError("model.tar.gz not found")
 
     model = PyTorchModel(
         model_data=model_data,
@@ -73,11 +68,21 @@ def main() -> None:
 
     sample_path = Path(args.sample)
     if sample_path.exists():
+        # 生画像バイナリを送信（base64エンコード不要）
         with sample_path.open("rb") as f:
-            payload = json.dumps({"image": base64.b64encode(f.read()).decode()})
-        result = predictor.predict(payload, initial_args={"ContentType": "application/json"})
+            raw = f.read()
+        result = predictor.predict(
+            raw,
+            initial_args={"ContentType": "image/jpeg"},
+        )
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
         logger.warning("Sample image not found: %s", sample_path)
         print(f"Endpoint deployed: {predictor.endpoint_name}")
-        print("Provide --sample <path> to test.")
+        print("Test with:")
+        print(f"  predictor.predict(open('<image>', 'rb').read(), "
+              f"initial_args={{'ContentType': 'image/jpeg'}})")
+
+
+if __name__ == "__main__":
+    main()
