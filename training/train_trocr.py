@@ -89,10 +89,14 @@ def compute_cer(eval_pred, processor) -> dict:
     """
     import jiwer
 
+    import numpy as np
+
     predictions, labels = eval_pred
+    if isinstance(predictions, tuple):
+        predictions = predictions[0]
     pred_texts = processor.batch_decode(predictions, skip_special_tokens=True)
-    label_ids = labels[label_ids != -100] if hasattr(labels, "__getitem__") else labels
-    ref_texts = processor.batch_decode([label_ids], skip_special_tokens=True)
+    labels = np.where(labels != -100, labels, processor.tokenizer.pad_token_id or 0)
+    ref_texts = processor.batch_decode(labels, skip_special_tokens=True)
 
     cer = jiwer.cer(ref_texts, pred_texts) if len(ref_texts) == len(pred_texts) else float("nan")
     return {"cer": cer}
@@ -127,8 +131,12 @@ def main() -> int:
     parser.add_argument("--learning_rate", type=float, default=5e-5)
     parser.add_argument("--warmup_ratio", type=float, default=0.1)
     parser.add_argument("--gradient_accumulation_steps", type=int, default=1)
-    parser.add_argument("--fp16", action="store_true", default=True)
+    parser.add_argument("--fp16", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--gradient_checkpointing", action="store_true", default=True)
+    parser.add_argument("--weight_decay", type=float, default=0.01, help="Weight decay for regularization")
+    parser.add_argument("--label_smoothing", type=float, default=0.1, help="Label smoothing (0.0=off, 0.1=recommended)")
+    parser.add_argument("--early_stopping_patience", type=int, default=3, help="Early stopping patience (0=off)")
+    parser.add_argument("--eval_split", type=float, default=0.1, help="Fraction of training data to use for evaluation (0=off)")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
@@ -147,8 +155,27 @@ def main() -> int:
     eval_ds = None
     if args.eval_dir:
         eval_ds = TrOCRLineDataset(args.eval_dir, processor)
+    elif args.eval_split > 0:
+        from torch.utils.data import random_split
+        total = len(train_ds)
+        eval_size = max(1, int(total * args.eval_split))
+        train_size = total - eval_size
+        train_ds, eval_ds = random_split(
+            train_ds, [train_size, eval_size],
+            generator=torch.Generator().manual_seed(args.seed),
+        )
+        logger.info("Split: train=%d, eval=%d", train_size, eval_size)
 
     from transformers import Seq2SeqTrainer, Seq2SeqTrainingArguments
+
+    callbacks = []
+    if eval_ds and args.early_stopping_patience > 0:
+        from transformers import EarlyStoppingCallback
+        callbacks.append(EarlyStoppingCallback(
+            early_stopping_patience=args.early_stopping_patience,
+            early_stopping_threshold=0.001,
+        ))
+        logger.info("Early stopping enabled (patience=%d)", args.early_stopping_patience)
 
     training_args = Seq2SeqTrainingArguments(
         output_dir=args.output_dir,
@@ -157,6 +184,8 @@ def main() -> int:
         per_device_eval_batch_size=args.batch_size,
         learning_rate=args.learning_rate,
         warmup_ratio=args.warmup_ratio,
+        weight_decay=args.weight_decay,
+        label_smoothing_factor=args.label_smoothing,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         fp16=args.fp16,
         save_strategy="epoch",
@@ -164,6 +193,9 @@ def main() -> int:
         logging_steps=50,
         save_total_limit=3,
         predict_with_generate=True,
+        load_best_model_at_end=eval_ds is not None,
+        metric_for_best_model="cer" if eval_ds else None,
+        greater_is_better=False if eval_ds else None,
         report_to=[],
         seed=args.seed,
     )
@@ -176,6 +208,7 @@ def main() -> int:
         data_collator=lambda batch: collate_fn(batch, processor),
         processing_class=processor.tokenizer,
         compute_metrics=lambda pred: compute_cer(pred, processor),
+        callbacks=callbacks,
     )
 
     logger.info("Starting training: %d epochs, batch=%d", args.epochs, args.batch_size)

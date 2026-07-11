@@ -82,8 +82,20 @@ def collate_fn(batch: list[dict], processor) -> dict:
         processor: TrOCRProcessor for batching.
 
     Returns:
-        Batched dict.
+        Batched dict with pixel_values, labels, and decoder_input_ids.
     """
     pixel_values = torch.stack([b["pixel_values"] for b in batch])
     labels = torch.stack([b["labels"] for b in batch])
-    return {"pixel_values": pixel_values, "labels": labels}
+
+    tokenizer = processor.tokenizer
+    pad_id = tokenizer.pad_token_id or 0
+    bos_id = getattr(tokenizer, "bos_token_id", None) or getattr(tokenizer, "cls_token_id", None) or 0
+
+    decoder_input_ids = labels.clone()
+    decoder_input_ids[decoder_input_ids == -100] = pad_id
+    shifted = decoder_input_ids.new_zeros(decoder_input_ids.shape)
+    shifted[:, 1:] = decoder_input_ids[:, :-1].clone()
+    shifted[:, 0] = bos_id
+    shifted[shifted == pad_id] = pad_id
+
+    return {"pixel_values": pixel_values, "labels": labels, "decoder_input_ids": shifted}

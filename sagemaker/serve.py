@@ -62,6 +62,11 @@ async def lifespan(app: FastAPI):
             finetuned_path = str(model_path)
         elif (model_path / "trocr" / "config.json").exists():
             finetuned_path = str(model_path / "trocr")
+        else:
+            for sub in sorted(model_path.iterdir()):
+                if sub.is_dir() and (sub / "config.json").exists():
+                    finetuned_path = str(sub)
+                    break
 
     registry = DocumentTypeRegistry()
     registry.register(DriverLicenseFront())
