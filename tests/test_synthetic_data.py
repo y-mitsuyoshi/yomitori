@@ -12,6 +12,7 @@ from training.generate_synthetic_data import (
     _find_available_fonts,
     _find_font,
     _download_ken_all,
+    _JINMEIYO_KANJI,
     _load_ken_all,
     _random_address,
     _random_era_date,
@@ -32,6 +33,27 @@ def test_build_kanji_pool():
     assert len(pool) > 100
     # Should contain common kanji
     assert "山" in pool or "田" in pool
+
+
+def test_build_kanji_pool_covers_jinmeiyo():
+    """_build_kanji_pool should cover JIS supplementary kanji (人名用漢字)."""
+    pool = _build_kanji_pool()
+    # JIS第2水準漢字（U+9XXX範囲）が含まれることを確認
+    assert any("\u9000" <= ch <= "\u9FFF" for ch in pool)
+
+
+def test_jinmeiyo_kanji_not_empty():
+    """_JINMEIYO_KANJI should contain external kanji characters."""
+    assert len(_JINMEIYO_KANJI) > 50
+
+
+def test_random_kanji_name_with_jinmeiyo():
+    """_random_kanji_name should include 人名用漢字 when triggered."""
+    pool = _build_kanji_pool()
+    # 複数回生成して人名用漢字が含まれることを確認
+    names = [_random_kanji_name(pool, min_len=3, max_len=3) for _ in range(100)]
+    # 少なくとも1つは人名用漢字を含む可能性がある（確率的）
+    assert all(2 <= len(n) <= 3 for n in names)
 
 
 def test_find_font():

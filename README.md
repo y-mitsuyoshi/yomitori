@@ -225,13 +225,52 @@ docker compose down
       "confidence": 0.92,
       "low_confidence": false
     },
+    "address": {
+      "value": "東京都千代田区霞が関1-1-1",
+      "confidence": 0.88,
+      "low_confidence": false
+    },
+    "domicile": {
+      "value": "東京都千代田区",
+      "confidence": 0.85,
+      "low_confidence": false
+    },
+    "issue_date": {
+      "raw": "令和5年3月1日",
+      "iso": "2023-03-01",
+      "value": "2023-03-01",
+      "confidence": 0.90,
+      "low_confidence": false
+    },
+    "expiry_date": {
+      "value": "2028年3月1日",
+      "confidence": 0.91,
+      "low_confidence": false,
+      "validation_passed": true
+    },
+    "conditions": {
+      "value": "眼鏡等",
+      "confidence": 0.87,
+      "low_confidence": false
+    },
     "license_number": {
       "value": "010203040506",
       "confidence": 0.99,
       "low_confidence": false,
       "validation_passed": true
+    },
+    "license_type": {
+      "value": "普",
+      "confidence": 0.96,
+      "low_confidence": false
+    },
+    "public_safety_commission": {
+      "value": "東京都公安委員会",
+      "confidence": 0.93,
+      "low_confidence": false
     }
   },
+  "overall_confidence": 0.92,
   "preprocessing": {
     "homography_applied": true,
     "corrected_image_size": [2400, 1512],
@@ -694,25 +733,18 @@ def build_registry() -> DocumentTypeRegistry:
   "status": "success",
   "document_type": "driver_license_front",
   "fields": {
-    "name": {
-      "value": "山田太郎",
-      "confidence": 0.95,
-      "low_confidence": false
-    },
-    "birth_date": {
-      "raw": "昭和61年5月1日生",
-      "iso": "1986-05-01",
-      "value": "1986-05-01",
-      "confidence": 0.92,
-      "low_confidence": false
-    },
-    "license_number": {
-      "value": "010203040506",
-      "confidence": 0.99,
-      "low_confidence": false,
-      "validation_passed": true
-    }
+    "name": {"value": "山田太郎", "confidence": 0.95, "low_confidence": false},
+    "birth_date": {"raw": "昭和61年5月1日生", "iso": "1986-05-01", "value": "1986-05-01", "confidence": 0.92, "low_confidence": false},
+    "address": {"value": "東京都千代田区1-1-1", "confidence": 0.88, "low_confidence": false},
+    "domicile": {"value": "東京都千代田区", "confidence": 0.85, "low_confidence": false},
+    "issue_date": {"raw": "令和5年3月1日", "iso": "2023-03-01", "value": "2023-03-01", "confidence": 0.90, "low_confidence": false},
+    "expiry_date": {"value": "2028年3月1日", "confidence": 0.91, "low_confidence": false, "validation_passed": true},
+    "conditions": {"value": "眼鏡等", "confidence": 0.87, "low_confidence": false},
+    "license_number": {"value": "010203040506", "confidence": 0.99, "low_confidence": false, "validation_passed": true},
+    "license_type": {"value": "普", "confidence": 0.96, "low_confidence": false},
+    "public_safety_commission": {"value": "東京都公安委員会", "confidence": 0.93, "low_confidence": false}
   },
+  "overall_confidence": 0.92,
   "preprocessing": {
     "homography_applied": true,
     "corrected_image_size": [2400, 1512],

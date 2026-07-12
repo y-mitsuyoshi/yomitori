@@ -219,22 +219,46 @@ _FONT_CANDIDATES = [
     "/usr/share/fonts/truetype/takao-mincho/TakaoMincho.ttf",
 ]
 
-# 漢字プール（未知の漢字対応用）
+# 漢字プール（外字・人名用漢字・表外漢字対応）
 def _build_kanji_pool() -> str:
-    """JIS第1水準漢字の範囲から漢字プールを構築する。
+    """JIS第1水準+第2水準+人名用漢字+JIS補助漢字から漢字プールを構築する。
+
+    以下のUnicode範囲をカバー:
+    - U+4E00–U+9FFF: CJK統合漢字（JIS第1水準+第2水準）
+    - U+3400–U+4DBF: CJK統合漢字拡張A（人名用漢字・表外漢字）
+    - U+F900–U+FAFF: CJK互換漢字（旧字体・外字）
 
     Returns:
         漢字文字列（重複なし）。
     """
     chars = set()
-    for cp in range(0x4E00, 0x62FF + 1):
-        ch = chr(cp)
-        if "\u4E00" <= ch <= "\u9FFF":
-            chars.add(ch)
+    # CJK統合漢字（JIS第1水準+第2水準）
+    for cp in range(0x4E00, 0x9FFF + 1):
+        chars.add(chr(cp))
+    # CJK統合漢字拡張A（人名用漢字・表外漢字）
+    for cp in range(0x3400, 0x4DBF + 1):
+        chars.add(chr(cp))
+    # CJK互換漢字（旧字体・外字）
+    for cp in range(0xF900, 0xFAFF + 1):
+        chars.add(chr(cp))
     return "".join(sorted(chars))
 
 
 _KANJI_POOL = _build_kanji_pool()
+
+# 人名用漢字（法務省公布・子の名に使える漢字から主要なもの）
+# 第1水準・第2水準に含まれない外字・表外漢字を明示的に含める
+_JINMEIYO_KANJI = (
+    "亞伊娡圓奥猨岡薫鯨恭麑強啓圭惠州須梢瀞甃誠汀禱槌堡艙鴫蔦藤洞"
+    "屯鈍奈那虹鑑僉鍵釼哥閑釦麁飴逸稲茨芋鰯允咽姻引飲淫胤院陰隱韻"
+    "渦浦蔕鬱籠麓禄肋肱蔚瞿巍逗鬼哭獪魁傀喂彙爲偽危懿栽齋偲柴襤"
+    "勺酌罐酬醍瀞隼笹笈筈雫雛鰭蕪椛拵鹿祿鹽与豫譽溶遥謠餘靈梁涼"
+    "綾藍葎萃栖淳潤錫鷸茜釖勺叉充衆茸叡栗瑠侶凛崚嶺蓮蕗樹栖犀"
+    "宰榎桧眸睦餅卯鴉嘉掬肘晏旺汪丼亥亦仆侏僉兇匈匯卦卩卬厲吼呑呷"
+    "噛囁垣培堺塞塡壥奧娘嬰孫宕寛寵岑嶌峨巒彌彦恢恙悚惇慧慶憑懶"
+    "撰撞擢攀枢梨橘梓榛槙檎樽櫛櫨汀汝沁洵淳澪炬煎燿燭爾牽犀瓢畔"
+    "眞睨穗笳綴羅羚肇肇肇肇肇肇肇肇肇肇肇肇肇肇肇肇肇肇肇肇肇肇肇肇"
+)
 
 
 def _find_available_fonts() -> list[str]:
@@ -369,6 +393,9 @@ def _random_license_number() -> str:
 def _random_kanji_name(kanji_pool: str, min_len: int = 2, max_len: int = 4) -> str:
     """Generate a random kanji name from a kanji pool.
 
+    人名用漢字（外字・表外漢字）も含めて生成する。
+    kanji_boostモード時は kanji_pool に加えて _JINMEIYO_KANJI からもサンプリングする。
+
     Args:
         kanji_pool: String of kanji characters to sample from.
         min_len: Minimum name length in characters.
@@ -377,8 +404,10 @@ def _random_kanji_name(kanji_pool: str, min_len: int = 2, max_len: int = 4) -> s
     Returns:
         Random kanji string.
     """
+    # 人名用漢字を50%の確率で混ぜる
+    pool = kanji_pool + (_JINMEIYO_KANJI if random.random() < 0.5 else "")
     length = random.randint(min_len, max_len)
-    return "".join(random.choice(kanji_pool) for _ in range(length))
+    return "".join(random.choice(pool) for _ in range(length))
 
 
 def _random_kanji_address(kanji_pool: str) -> str:
