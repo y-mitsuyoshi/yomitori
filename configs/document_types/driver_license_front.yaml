@@ -10,61 +10,76 @@ zones:
     x0: 0.00
     y0: 0.00
     x1: 0.55
-    y1: 0.12
+    y1: 0.10
     label: "氏名"
     label_remove: true
   birth_date:
     x0: 0.45
     y0: 0.00
-    x1: 0.80
-    y1: 0.12
+    x1: 0.85
+    y1: 0.10
     label: "生年月日"
     label_remove: true
     date_format: "japanese_era"
   address:
     x0: 0.00
-    y0: 0.12
+    y0: 0.10
     x1: 0.70
-    y1: 0.26
+    y1: 0.24
     label: "住所"
+    label_remove: true
+    normalize: "fullwidth_to_halfwidth"
+  domicile:
+    x0: 0.00
+    y0: 0.24
+    x1: 0.70
+    y1: 0.32
+    label: "本籍"
     label_remove: true
     normalize: "fullwidth_to_halfwidth"
   issue_date:
     x0: 0.00
-    y0: 0.26
+    y0: 0.32
     x1: 0.70
-    y1: 0.33
+    y1: 0.39
     label: "交付年月日"
     label_remove: true
     date_format: "japanese_era"
   expiry_date:
     x0: 0.00
-    y0: 0.33
+    y0: 0.39
     x1: 0.70
-    y1: 0.40
+    y1: 0.46
     label: "有効期限"
     label_remove: true
   conditions:
     x0: 0.00
-    y0: 0.40
+    y0: 0.46
     x1: 0.70
     y1: 0.56
     label: "免許の条件"
     label_remove: true
   license_number:
     x0: 0.00
-    y0: 0.60
+    y0: 0.56
     x1: 0.70
-    y1: 0.78
+    y1: 0.74
     label: "免許証番号"
     label_remove: true
     whitelist: "0123456789"
   license_type:
     x0: 0.00
-    y0: 0.78
+    y0: 0.74
     x1: 0.70
-    y1: 0.90
+    y1: 0.86
     label: "免許の種類"
+    label_remove: true
+  public_safety_commission:
+    x0: 0.00
+    y0: 0.86
+    x1: 0.70
+    y1: 0.96
+    label: "公安委員会"
     label_remove: true
 
 validation:

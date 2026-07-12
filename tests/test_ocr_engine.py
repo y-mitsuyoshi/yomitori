@@ -200,11 +200,11 @@ def test_ocr_engine_cross_field_validation(mock_corrector_cls):
         np.zeros((1512, 2400, 3), dtype=np.uint8),
         {"homography_applied": True, "corrected_image_size": [2400, 1512], "fallback_used": False},
     )
-    # birth_date zone: x[0.45,0.80], y[0.00,0.12] → center (0.60, 0.05) (outside name zone x[0.00,0.55])
-    # expiry_date zone: x[0.00,0.70], y[0.33,0.40] → center (0.10, 0.36)
+    # birth_date zone: x[0.45,0.85], y[0.00,0.10] → center (0.60, 0.05) (outside name zone x[0.00,0.55])
+    # expiry_date zone: x[0.00,0.70], y[0.39,0.46] → center (0.10, 0.42)
     detections = [
         _make_detection(0.60, 0.05),
-        _make_detection(0.10, 0.36),
+        _make_detection(0.10, 0.42),
     ]
     detector = _make_mock_detector(detections)
     recognizer = _make_mock_recognizer([

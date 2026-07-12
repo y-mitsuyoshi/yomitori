@@ -142,7 +142,7 @@ def test_generate_one_basic():
     """generate_one should return image and lines."""
     image, lines = generate_one(width=400, height=200)
     assert image.shape == (200, 400, 3)
-    assert len(lines) == 8
+    assert len(lines) == 10
 
 
 def test_generate_one_with_address_pool():
@@ -162,7 +162,7 @@ def test_generate_one_fallback_kanji_address():
         image, lines = generate_one(
             width=400, height=200, address_pool=_DUMMY_ADDRESSES
         )
-    assert len(lines) == 8
+    assert len(lines) == 10
     addr_lines = [l for l in lines if "住所" in l[0]]
     assert len(addr_lines) == 1
 
@@ -174,7 +174,7 @@ def test_generate_one_fallback_dummy_address():
         image, lines = generate_one(
             width=400, height=200, address_pool=_DUMMY_ADDRESSES
         )
-    assert len(lines) == 8
+    assert len(lines) == 10
     addr_lines = [l for l in lines if "住所" in l[0]]
     assert len(addr_lines) == 1
 
@@ -182,7 +182,7 @@ def test_generate_one_fallback_dummy_address():
 def test_generate_one_kanji_boost():
     """generate_one with kanji_boost should use kanji pool for names."""
     image, lines = generate_one(width=400, height=200, kanji_boost=True)
-    assert len(lines) == 8
+    assert len(lines) == 10
 
 
 def test_crop_lines_from_image():
@@ -351,7 +351,7 @@ def test_generate_one_with_font():
     font = _find_font()
     image, lines = generate_one(width=400, height=200, font_path=font)
     assert image.shape == (200, 400, 3)
-    assert len(lines) == 8
+    assert len(lines) == 10
 
 
 def test_main_generates_data(tmp_path):
@@ -374,7 +374,7 @@ def test_main_generates_data(tmp_path):
         assert (output_dir / "images").exists()
         with open(output_dir / "labels.json") as f:
             labels = json.load(f)
-        assert len(labels) == 16  # 2 docs × 8 lines
+        assert len(labels) == 20  # 2 docs × 10 lines
     finally:
         sys.argv = old_argv
 

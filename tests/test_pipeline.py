@@ -26,8 +26,8 @@ def test_field_extractor_nearest():
     """Pass-2 should assign to nearest zone within margin."""
     dt = DriverLicenseFront()
     extractor = FieldExtractor(dt, margin=0.04)
-    # Point at (0.1, 0.92) — below license_type zone y[0.78,0.90] by 0.02
-    result = extractor.assign(0.1, 0.92)
+    # Point at (0.1, 0.98) — below public_safety_commission zone y[0.86,0.96] by 0.02
+    result = extractor.assign(0.1, 0.98)
     assert result is not None  # should fall to nearest
 
 
@@ -102,20 +102,19 @@ def test_field_extractor_pass2_debug(caplog):
 
     dt = DriverLicenseFront()
     extractor = FieldExtractor(dt, margin=0.05)
-    # Point at (0.1, 0.92) — below license_type zone y[0.78,0.90] by 0.02
-    # Not inside any zone (license_number ends at y=0.78, license_type starts at y=0.78)
+    # Point at (0.1, 0.98) — below public_safety_commission zone y[0.86,0.96] by 0.02
     with caplog.at_level(logging.DEBUG, logger="src.pipeline.field_extractor"):
-        result = extractor.assign(0.1, 0.92)
+        result = extractor.assign(0.1, 0.98)
     assert result is not None
-    assert result == "license_type"
+    assert result == "public_safety_commission"
 
 
 def test_field_extractor_pass2_updates_best():
     """Pass-2 should iterate and update best_zone multiple times."""
     dt = DriverLicenseFront()
     extractor = FieldExtractor(dt, margin=0.10)
-    # Point at (0.1, 0.92) — below license_type zone y[0.78,0.90] by 0.02
-    result = extractor.assign(0.1, 0.92)
+    # Point at (0.1, 0.98) — below public_safety_commission zone y[0.86,0.96] by 0.02
+    result = extractor.assign(0.1, 0.98)
     assert result is not None
 
 

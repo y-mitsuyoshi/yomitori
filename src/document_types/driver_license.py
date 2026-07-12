@@ -4,7 +4,12 @@ from src.document_types.base import DocumentType, ValidationRule, Zone
 
 
 class DriverLicenseFront(DocumentType):
-    """運転免許証（表面）— Japanese driver's license, front side."""
+    """運転免許証（表面）— Japanese driver's license, front side.
+
+    実際の運転免許証表面に記載されている全項目:
+        氏名・生年月日・住所・本籍・交付年月日・有効期限・
+        免許の条件・免許証番号・免許の種類・公安委員会名
+    """
 
     @property
     def document_type_id(self) -> str:
@@ -23,46 +28,57 @@ class DriverLicenseFront(DocumentType):
         return {
             "name": Zone(
                 "name", "氏名",
-                0.00, 0.00, 0.55, 0.12,
+                0.00, 0.00, 0.55, 0.10,
                 label_remove=True,
             ),
             "birth_date": Zone(
                 "birth_date", "生年月日",
-                0.45, 0.00, 0.80, 0.12,
+                0.45, 0.00, 0.85, 0.10,
                 label_remove=True,
                 date_format="japanese_era",
             ),
             "address": Zone(
                 "address", "住所",
-                0.00, 0.12, 0.70, 0.26,
+                0.00, 0.10, 0.70, 0.24,
+                label_remove=True,
+                normalize="fullwidth_to_halfwidth",
+            ),
+            "domicile": Zone(
+                "domicile", "本籍",
+                0.00, 0.24, 0.70, 0.32,
                 label_remove=True,
                 normalize="fullwidth_to_halfwidth",
             ),
             "issue_date": Zone(
                 "issue_date", "交付年月日",
-                0.00, 0.26, 0.70, 0.33,
+                0.00, 0.32, 0.70, 0.39,
                 label_remove=True,
                 date_format="japanese_era",
             ),
             "expiry_date": Zone(
                 "expiry_date", "有効期限",
-                0.00, 0.33, 0.70, 0.40,
+                0.00, 0.39, 0.70, 0.46,
                 label_remove=True,
             ),
             "conditions": Zone(
                 "conditions", "免許の条件",
-                0.00, 0.40, 0.70, 0.56,
+                0.00, 0.46, 0.70, 0.56,
                 label_remove=True,
             ),
             "license_number": Zone(
                 "license_number", "免許証番号",
-                0.00, 0.60, 0.70, 0.78,
+                0.00, 0.56, 0.70, 0.74,
                 label_remove=True,
                 whitelist="0123456789",
             ),
             "license_type": Zone(
                 "license_type", "免許の種類",
-                0.00, 0.78, 0.70, 0.90,
+                0.00, 0.74, 0.70, 0.86,
+                label_remove=True,
+            ),
+            "public_safety_commission": Zone(
+                "public_safety_commission", "公安委員会",
+                0.00, 0.86, 0.70, 0.96,
                 label_remove=True,
             ),
         }

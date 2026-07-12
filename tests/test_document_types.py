@@ -12,7 +12,7 @@ def test_driver_license_properties():
     assert dt.document_type_id == "driver_license_front"
     assert dt.card_aspect_ratio == 1.585
     assert dt.normalized_size == (2400, 1512)
-    assert len(dt.zones) == 8
+    assert len(dt.zones) == 10
     assert len(dt.validation_rules) == 3
 
 
