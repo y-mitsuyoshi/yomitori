@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-ipafont \
     fonts-ipaexfont \
     fonts-takao \
+    docker.io \
     && rm -rf /var/lib/apt/lists/* \
     && update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1 \
     && python -m pip install --upgrade pip
