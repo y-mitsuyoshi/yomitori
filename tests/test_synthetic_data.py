@@ -11,6 +11,7 @@ from training.generate_synthetic_data import (
     _build_kanji_pool,
     _find_available_fonts,
     _find_font,
+    _download_ken_all,
     _load_ken_all,
     _random_address,
     _random_era_date,
@@ -154,6 +155,30 @@ def test_generate_one_with_address_pool():
     assert pool[0] in addr_lines[0][0]
 
 
+def test_generate_one_fallback_kanji_address():
+    """generate_one should use random kanji address when pool is fallback."""
+    from training.generate_synthetic_data import _DUMMY_ADDRESSES
+    with patch("random.random", return_value=0.3):  # < 0.5 → kanji address
+        image, lines = generate_one(
+            width=400, height=200, address_pool=_DUMMY_ADDRESSES
+        )
+    assert len(lines) == 8
+    addr_lines = [l for l in lines if "住所" in l[0]]
+    assert len(addr_lines) == 1
+
+
+def test_generate_one_fallback_dummy_address():
+    """generate_one should use dummy address when pool is fallback (50% branch)."""
+    from training.generate_synthetic_data import _DUMMY_ADDRESSES
+    with patch("random.random", return_value=0.7):  # >= 0.5 → dummy address
+        image, lines = generate_one(
+            width=400, height=200, address_pool=_DUMMY_ADDRESSES
+        )
+    assert len(lines) == 8
+    addr_lines = [l for l in lines if "住所" in l[0]]
+    assert len(addr_lines) == 1
+
+
 def test_generate_one_kanji_boost():
     """generate_one with kanji_boost should use kanji pool for names."""
     image, lines = generate_one(width=400, height=200, kanji_boost=True)
@@ -187,11 +212,15 @@ def test_find_available_fonts_no_fonts():
 
 def test_load_ken_all_with_csv(tmp_path):
     """_load_ken_all should parse a mock KEN_ALL.CSV."""
-    # KEN_ALL.CSV format: [jis_zip, zip5, pref_kana, city_kana, town_kana,
-    #   prefecture, city, town, ...]
+    # KEN_ALL.CSV format: 15 columns
+    # [0]=JISコード, [1]=郵便番号(5桁), [2]=郵便番号(7桁),
+    # [3]=都道府県カナ, [4]=市区町村カナ, [5]=町域カナ,
+    # [6]=都道府県, [7]=市区町村, [8]=町域, ...
     csv_content = (
-        "0600001,0600001,ホッカイドウ,サッポロシチュウオウク,キタヒトシジョウニシ,北海道,札幌市中央区,北一条西,1,1,0,0,0,0,0\n"
-        "1000001,1000001,トウキョウト,チヨダク,チヨダ,東京都,千代田区,千代田,1,1,0,0,0,0,0\n"
+        "01101,\"060  \",\"0600001\",\"ﾎｯｶｲﾄﾞｳ\",\"ｻｯﾎﾟﾛｼﾁｭｳｵｳｸ\",\"ｷﾀﾋﾄｼｼﾞｮｳﾆｼ\","
+        "北海道,札幌市中央区,北一条西,1,1,0,0,0,0\n"
+        "13101,\"100  \",\"1000001\",\"ﾄｳｷｮｳﾄ\",\"ﾁﾖﾀﾞｸ\",\"ﾁﾖﾀﾞ\","
+        "東京都,千代田区,千代田,1,1,0,0,0,0\n"
     )
     csv_path = tmp_path / "KEN_ALL.CSV"
     csv_path.write_text(csv_content, encoding="shift_jis")
@@ -224,7 +253,8 @@ def test_load_ken_all_empty_rows(tmp_path):
 def test_load_ken_all_no_town(tmp_path):
     """_load_ken_all should handle rows with empty town field."""
     csv_content = (
-        "1000001,1000001,トウキョウト,チヨダク,,東京都,千代田区,,1,1,0,0,0,0,0\n"
+        "1000001,\"100  \",\"1000001\",\"ﾄｳｷｮｳﾄ\",\"ﾁﾖﾀﾞｸ\",\"\","
+        "東京都,千代田区,,1,1,0,0,0,0\n"
     )
     csv_path = tmp_path / "KEN_ALL.CSV"
     csv_path.write_text(csv_content, encoding="shift_jis")
@@ -237,7 +267,8 @@ def test_load_ken_all_no_town(tmp_path):
 def test_load_ken_all_kokonai(tmp_path):
     """_load_ken_all should handle '以下に掲載がない' town field."""
     csv_content = (
-        "1000001,1000001,トウキョウト,チヨダク,以下に掲載がない,東京都,千代田区,以下に掲載がない,1,1,0,0,0,0,0\n"
+        "1000001,\"100  \",\"1000001\",\"ﾄｳｷｮｳﾄ\",\"ﾁﾖﾀﾞｸ\",\"ｲｶﾆｹｲｻｲｶﾞﾅｲﾊﾞｱｲ\","
+        "東京都,千代田区,以下に掲載がない場合,1,1,0,0,0,0\n"
     )
     csv_path = tmp_path / "KEN_ALL.CSV"
     csv_path.write_text(csv_content, encoding="shift_jis")
@@ -304,7 +335,8 @@ def test_random_era_date_unknown_era():
 def test_load_ken_all_empty_prefecture(tmp_path):
     """_load_ken_all should skip rows with empty prefecture."""
     csv_content = (
-        "1000001,1000001,トウキョウト,チヨダク,チヨダ,,千代田区,千代田,1,1,0,0,0,0,0\n"
+        "1000001,\"100  \",\"1000001\",\"\",\"ﾁﾖﾀﾞｸ\",\"ﾁﾖﾀﾞ\","
+        ",千代田区,千代田,1,1,0,0,0,0\n"
     )
     csv_path = tmp_path / "KEN_ALL.CSV"
     csv_path.write_text(csv_content, encoding="shift_jis")
@@ -387,3 +419,69 @@ def test_main_with_no_blur_no_jpeg(tmp_path):
         assert ret == 0
     finally:
         sys.argv = old_argv
+
+
+def test_download_ken_all_failure(tmp_path):
+    """_download_ken_all should return None when download fails."""
+    with patch("urllib.request.urlretrieve", side_effect=IOError("mock error")):
+        result = _download_ken_all(tmp_path / "postal")
+    assert result is None
+
+
+def test_download_ken_all_too_small(tmp_path):
+    """_download_ken_all should reject files that are too small."""
+    def mock_urlretrieve(url, dest):
+        Path(dest).write_text("too small", encoding="utf-8")
+
+    with patch("urllib.request.urlretrieve", side_effect=mock_urlretrieve):
+        result = _download_ken_all(tmp_path / "postal")
+    assert result is None
+
+
+def test_download_ken_all_success(tmp_path):
+    """_download_ken_all should save CSV from a mock download."""
+    import urllib.request
+
+    # 十分なサイズのCSVコンテンツを作成（複数行）
+    csv_line = (
+        "01101,\"060  \",\"0600001\",\"ﾎｯｶｲﾄﾞｳ\",\"ｻｯﾎﾟﾛｼﾁｭｳｵｳｸ\",\"ｷﾀﾋﾄｼｼﾞｮｳﾆｼ\","
+        "北海道,札幌市中央区,北一条西,1,1,0,0,0,0\n"
+    )
+    csv_content = csv_line * 100  # 100行 → 1000バイト以上
+
+    def mock_urlretrieve(url, dest):
+        Path(dest).write_text(csv_content, encoding="shift_jis")
+
+    with patch("urllib.request.urlretrieve", side_effect=mock_urlretrieve):
+        result = _download_ken_all(tmp_path / "postal")
+
+    assert result is not None
+    assert result.exists()
+    assert "KEN_ALL" in result.name.upper()
+
+
+def test_load_ken_all_triggers_download(tmp_path):
+    """_load_ken_all should attempt download when local file not found."""
+    import urllib.request
+
+    csv_content = (
+        "01101,\"060  \",\"0600001\",\"ﾎｯｶｲﾄﾞｳ\",\"ｻｯﾎﾟﾛｼﾁｭｳｵｳｸ\",\"ｷﾀﾋﾄｼｼﾞｮｳﾆｼ\","
+        "北海道,札幌市中央区,北一条西,1,1,0,0,0,0\n"
+    )
+
+    downloaded_path = tmp_path / "postal" / "KEN_ALL.CSV"
+
+    def mock_urlretrieve(url, dest):
+        Path(dest).write_text(csv_content, encoding="shift_jis")
+
+    with patch("training.generate_synthetic_data._KEN_ALL_PATHS", ["/nonexistent/path"]), \
+         patch("urllib.request.urlretrieve", side_effect=mock_urlretrieve), \
+         patch("training.generate_synthetic_data._download_ken_all") as mock_dl:
+        mock_dl.return_value = downloaded_path
+        downloaded_path.parent.mkdir(parents=True, exist_ok=True)
+        downloaded_path.write_text(csv_content, encoding="shift_jis")
+
+        addresses = _load_ken_all()
+
+    assert len(addresses) >= 1
+    assert "北海道" in addresses[0]

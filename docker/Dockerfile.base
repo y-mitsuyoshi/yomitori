@@ -25,13 +25,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1 \
     && python -m pip install --upgrade pip
 
-# 郵便局の全国住所データ（KEN_ALL.CSV）をダウンロード
-RUN mkdir -p /opt/ml/data/postal && \
-    wget -q -O /tmp/ken_all.zip "https://www.post.japanpost.jp/zipcode/dl/ken_all.zip" && \
-    unzip -o /tmp/ken_all.zip -d /opt/ml/data/postal/ && \
-    rm /tmp/ken_all.zip && \
-    ls /opt/ml/data/postal/KEN_ALL.CSV
-
 # PyTorch (CUDA 12.8 対応版 — RTX 5070 Blackwell 対応)
 RUN python -m pip install --no-cache-dir torch torchvision \
     --index-url https://download.pytorch.org/whl/cu128
