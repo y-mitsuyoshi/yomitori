@@ -20,15 +20,14 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-def build_multilingual_processor(base_model: str, decoder_tokenizer: str | None):
+def build_multilingual_processor(base_model: str, decoder_tokenizer: str):
     """TrOCRProcessorを構築する。
 
-    decoder_tokenizerがNoneの場合はベースモデルのトークナイザーをそのまま使用する
-    （manga-ocr-base等の日本語学習済みモデル向け）。
+    ベースモデルの画像プロセッサー + 指定した多言語トークナイザーを組み合わせる。
 
     Args:
         base_model: TrOCRベースモデル名（画像エンコーダ用）。
-        decoder_tokenizer: デコーダトークナイザー名。Noneならベースモデルのまま。
+        decoder_tokenizer: デコーダトークナイザー名。
 
     Returns:
         TrOCRProcessor インスタンス。
@@ -36,22 +35,20 @@ def build_multilingual_processor(base_model: str, decoder_tokenizer: str | None)
     from transformers import AutoTokenizer, TrOCRProcessor
 
     processor = TrOCRProcessor.from_pretrained(base_model)
-    if decoder_tokenizer:
-        tokenizer = AutoTokenizer.from_pretrained(decoder_tokenizer)
-        processor.tokenizer = tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(decoder_tokenizer)
+    processor.tokenizer = tokenizer
     return processor
 
 
-def build_multilingual_model(base_model: str, decoder_tokenizer: str | None):
+def build_multilingual_model(base_model: str, decoder_tokenizer: str):
     """VisionEncoderDecoderModelを構築する。
 
-    decoder_tokenizerが指定されている場合はデコーダの語彙を差し替える。
-    Noneの場合はベースモデルのトークナイザーをそのまま使用する
-    （manga-ocr-base等の日本語学習済みモデル向け）。
+    ベースモデルのエンコーダ（画像理解）はそのまま使い、
+    デコーダ（テキスト生成）の語彙を指定したトークナイザーに合わせてリサイズする。
 
     Args:
         base_model: TrOCRベースモデル名。
-        decoder_tokenizer: デコーダトークナイザー名。Noneならベースモデルのまま。
+        decoder_tokenizer: デコーダトークナイザー名。
 
     Returns:
         (model, processor) のタプル。
@@ -64,24 +61,18 @@ def build_multilingual_model(base_model: str, decoder_tokenizer: str | None):
 
     model = VisionEncoderDecoderModel.from_pretrained(base_model)
     processor = TrOCRProcessor.from_pretrained(base_model)
+    tokenizer = AutoTokenizer.from_pretrained(decoder_tokenizer)
+    processor.tokenizer = tokenizer
 
-    if decoder_tokenizer:
-        tokenizer = AutoTokenizer.from_pretrained(decoder_tokenizer)
-        processor.tokenizer = tokenizer
+    # デコーダの語彙をトークナイザーに合わせてリサイズ
+    model.config.decoder.vocab_size = len(tokenizer)
+    model.decoder.resize_token_embeddings(len(tokenizer))
 
-        # デコーダの語彙を多言語トークナイザーに合わせてリサイズ
-        model.config.decoder.vocab_size = len(tokenizer)
-        model.decoder.resize_token_embeddings(len(tokenizer))
-
-        # 生成用の設定を更新
-        model.config.pad_token_id = tokenizer.pad_token_id
-        model.config.decoder_start_token_id = tokenizer.bos_token_id or tokenizer.cls_token_id
-        model.config.eos_token_id = tokenizer.eos_token_id or tokenizer.sep_token_id
-        model.config.vocab_size = len(tokenizer)
-    else:
-        # ベースモデルのトークナイザーをそのまま使用（manga-ocr-base等）
-        tokenizer = AutoTokenizer.from_pretrained(base_model)
-        processor.tokenizer = tokenizer
+    # 生成用の設定を更新
+    model.config.pad_token_id = tokenizer.pad_token_id
+    model.config.decoder_start_token_id = tokenizer.bos_token_id or tokenizer.cls_token_id
+    model.config.eos_token_id = tokenizer.eos_token_id or tokenizer.sep_token_id
+    model.config.vocab_size = len(tokenizer)
 
     return model, processor
 
@@ -133,9 +124,7 @@ def main() -> int:
         default="xlm-roberta-base",
         help="Decoder tokenizer for multilingual support "
              "(default: xlm-roberta-base, 100 languages, MIT license). "
-             "Alternatives: 'cl-tohoku/bert-base-japanese-v3' (Japanese only, Apache 2.0). "
-             "Set to 'none' to keep the base model's built-in tokenizer "
-             "(e.g. kha-white/manga-ocr-base which has a Japanese GPT-2 tokenizer).",
+             "Alternative: 'cl-tohoku/bert-base-japanese-v3' (Japanese only, Apache 2.0).",
     )
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--epochs", type=int, default=5)
@@ -151,21 +140,13 @@ def main() -> int:
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
-    # "none" → None (keep base model's built-in tokenizer, e.g. manga-ocr-base)
-    decoder_tokenizer = args.decoder_tokenizer
-    if decoder_tokenizer and decoder_tokenizer.lower() == "none":
-        decoder_tokenizer = None
-
     torch.manual_seed(args.seed)
 
     logger.info("Building model:")
     logger.info("  Base model: %s", args.base_model)
-    if decoder_tokenizer:
-        logger.info("  Decoder tokenizer: %s (replacing base model's tokenizer)", decoder_tokenizer)
-    else:
-        logger.info("  Decoder tokenizer: (using base model's built-in tokenizer)")
+    logger.info("  Decoder tokenizer: %s", args.decoder_tokenizer)
 
-    model, processor = build_multilingual_model(args.base_model, decoder_tokenizer)
+    model, processor = build_multilingual_model(args.base_model, args.decoder_tokenizer)
 
     if args.gradient_checkpointing:
         model.encoder.gradient_checkpointing_enable()

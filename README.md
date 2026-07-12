@@ -274,16 +274,6 @@ TrOCRベースモデル（画像エンコーダはそのまま）
 | `xlm-roberta-base`（デフォルト） | MIT | 100言語（日本語・英語・中国語等） | `--decoder_tokenizer xlm-roberta-base` |
 | `cl-tohoku/bert-base-japanese-v3` | Apache 2.0 | 日本語のみ | `--decoder_tokenizer cl-tohoku/bert-base-japanese-v3` |
 | `bert-base-multilingual-cased` | Apache 2.0 | 多言語 | `--decoder_tokenizer bert-base-multilingual-cased` |
-| `none`（ベースモデル内蔵） | — | ベースモデルに依存 | `--decoder_tokenizer none` |
-
-### ベースモデルの選択肢
-
-| ベースモデル | ライセンス | 特徴 | 指定方法 |
-|---|---|---|---|
-| `microsoft/trocr-base-printed`（デフォルト） | MIT | 英語専用デコーダ。多言語トークナイザーと組み合わせて使用 | `--base_model microsoft/trocr-base-printed` |
-| `kha-white/manga-ocr-base` | Apache 2.0 | 日本語GPT-2デコーダ内蔵。外部トークナイザー不要 | `--base_model kha-white/manga-ocr-base --decoder_tokenizer none` |
-
-> **manga-ocr-base を使うメリット**: 最初から日本語辞書（GPT-2ベース）で事前学習されているため、`xlm-roberta-base` や `cl-tohoku` などの外部トークナイザーを借りてくる必要がありません。語彙のリサイズも不要で、そのままファインチューニングできます。商用利用可能（Apache 2.0）。
 
 ### 手順
 
@@ -309,17 +299,7 @@ docker compose run --rm train python -m training.train_trocr \
     --epochs 5 \
     --batch_size 8
 
-# 4. manga-ocr-base（日本語学習済み）をベースに使う場合
-#    外部トークナイザー不要、デコーダの語彙リサイズも不要
-docker compose run --rm train python -m training.train_trocr \
-    --data_dir /opt/ml/code/data/synthetic/driver_license/ \
-    --output_dir /opt/ml/model \
-    --base_model kha-white/manga-ocr-base \
-    --decoder_tokenizer none \
-    --epochs 5 \
-    --batch_size 8
-
-# 5. 学習済みモデルを確認
+# 4. 学習済みモデルを確認
 docker compose run --rm dev ls -la /opt/ml/model/
 ```
 
@@ -751,7 +731,6 @@ def build_registry() -> DocumentTypeRegistry:
 | 前処理 | OpenCV | Apache 2.0 |
 | 文字検出 | docTR (Mindee) | Apache 2.0 |
 | 文字認識 | Microsoft TrOCR | MIT |
-| 文字認識（日本語学習済みベース） | kha-white/manga-ocr-base | Apache 2.0 |
 | トークナイザー（多言語） | Facebook xlm-roberta-base | MIT |
 | トークナイザー（日本語特化） | 東北大学 cl-tohoku/bert-base-japanese-v3 | Apache 2.0 |
 | デプロイ | Amazon SageMaker | Apache 2.0 |
