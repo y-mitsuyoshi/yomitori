@@ -36,6 +36,15 @@ def build_multilingual_processor(base_model: str, decoder_tokenizer: str):
 
     processor = TrOCRProcessor.from_pretrained(base_model)
     tokenizer = AutoTokenizer.from_pretrained(decoder_tokenizer)
+    
+    # BERT tokenizer lacks bos/eos tokens, map them to cls/sep tokens
+    if tokenizer.bos_token is None:
+        tokenizer.bos_token = tokenizer.cls_token
+        tokenizer.bos_token_id = tokenizer.cls_token_id
+    if tokenizer.eos_token is None:
+        tokenizer.eos_token = tokenizer.sep_token
+        tokenizer.eos_token_id = tokenizer.sep_token_id
+
     processor.tokenizer = tokenizer
     return processor
 
@@ -62,6 +71,15 @@ def build_multilingual_model(base_model: str, decoder_tokenizer: str):
     model = VisionEncoderDecoderModel.from_pretrained(base_model)
     processor = TrOCRProcessor.from_pretrained(base_model)
     tokenizer = AutoTokenizer.from_pretrained(decoder_tokenizer)
+
+    # BERT tokenizer lacks bos/eos tokens, map them to cls/sep tokens
+    if tokenizer.bos_token is None:
+        tokenizer.bos_token = tokenizer.cls_token
+        tokenizer.bos_token_id = tokenizer.cls_token_id
+    if tokenizer.eos_token is None:
+        tokenizer.eos_token = tokenizer.sep_token
+        tokenizer.eos_token_id = tokenizer.sep_token_id
+
     processor.tokenizer = tokenizer
 
     # デコーダの語彙をトークナイザーに合わせてリサイズ
@@ -70,9 +88,15 @@ def build_multilingual_model(base_model: str, decoder_tokenizer: str):
 
     # 生成用の設定を更新
     model.config.pad_token_id = tokenizer.pad_token_id
-    model.config.decoder_start_token_id = tokenizer.bos_token_id or tokenizer.cls_token_id
-    model.config.eos_token_id = tokenizer.eos_token_id or tokenizer.sep_token_id
+    model.config.decoder_start_token_id = tokenizer.bos_token_id
+    model.config.eos_token_id = tokenizer.eos_token_id
     model.config.vocab_size = len(tokenizer)
+
+    # generation_config も明示的に更新する
+    if model.generation_config is not None:
+        model.generation_config.pad_token_id = tokenizer.pad_token_id
+        model.generation_config.decoder_start_token_id = tokenizer.bos_token_id
+        model.generation_config.eos_token_id = tokenizer.eos_token_id
 
     return model, processor
 
