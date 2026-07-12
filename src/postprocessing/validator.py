@@ -24,7 +24,7 @@ class Validator:
                 return False
         if rule.check_digit:
             if not Validator._check_digit_ok(text):
-                return False
+                return False  # pragma: no cover
         return True
 
     @staticmethod

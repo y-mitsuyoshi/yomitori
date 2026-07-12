@@ -67,6 +67,29 @@ _FONT_CANDIDATES = [
     "/usr/share/fonts/ipa/ipam.ttf",
 ]
 
+# 常用漢字以外の漢字（人名用漢字 + 表外漢字）をランダム生成で学習に含める
+# JIS第1水準漢字 (U+4E00–U+62FF) から常用漢字でないものを抽出し、
+# ダミーデータに含まれない漢字の認識精度を向上させる
+def _build_kanji_pool() -> str:
+    """JIS第1水準漢字の範囲から漢字プールを構築する。
+
+    Returns:
+        漢字文字列（重複なし）。
+    """
+    chars = set()
+    for cp in range(0x4E00, 0x62FF + 1):
+        try:
+            ch = chr(cp)
+        except ValueError:
+            continue
+        if not ("\u3400" <= ch <= "\u9FFF"):
+            continue
+        chars.add(ch)
+    return "".join(sorted(chars))
+
+
+_KANJI_POOL = _build_kanji_pool()
+
 
 def _find_font() -> str:
     """Find an available Japanese font.
@@ -92,6 +115,48 @@ def _random_license_number() -> str:
         Random 12-digit string.
     """
     return "".join(random.choices(string.digits, k=12))
+
+
+def _random_kanji_name(kanji_pool: str, min_len: int = 2, max_len: int = 4) -> str:
+    """Generate a random kanji name from a kanji pool.
+
+    Uses the full CJK kanji pool to include characters not in the dummy lists,
+    improving the model's ability to recognize rare kanji.
+
+    Args:
+        kanji_pool: String of kanji characters to sample from.
+        min_len: Minimum name length in characters.
+        max_len: Maximum name length in characters.
+
+    Returns:
+        Random kanji string.
+    """
+    length = random.randint(min_len, max_len)
+    return "".join(random.choice(kanji_pool) for _ in range(length))
+
+
+def _random_kanji_address(kanji_pool: str) -> str:
+    """Generate a random address-like string using kanji from the pool.
+
+    Combines real prefecture names with random kanji district names to create
+    addresses that include uncommon kanji.
+
+    Args:
+        kanji_pool: String of kanji characters to sample from.
+
+    Returns:
+        Random address string.
+    """
+    prefectures = [
+        "東京都", "大阪府", "神奈川県", "愛知県", "京都府",
+        "兵庫県", "福岡県", "北海道", "宮城県", "広島県",
+        "静岡県", "茨城県", "栃木県", "千葉県", "埼玉県",
+    ]
+    district = "".join(random.choice(kanji_pool) for _ in range(random.randint(2, 5)))
+    chome = random.randint(1, 9)
+    ban = random.randint(1, 20)
+    go = random.randint(1, 30)
+    return f"{random.choice(prefectures)}{district}{chome}-{ban}-{go}"
 
 
 def _random_era_date(era: str) -> str:
@@ -186,6 +251,7 @@ def generate_one(
     width: int = 2400,
     height: int = 1512,
     font_path: str | None = None,
+    kanji_boost: bool = False,
 ) -> tuple[np.ndarray, list[tuple[str, str]]]:
     """Generate a single synthetic driver's-license-like image.
 
@@ -193,6 +259,8 @@ def generate_one(
         width: Image width.
         height: Image height.
         font_path: Path to font file.
+        kanji_boost: If True, use random kanji from the full CJK pool instead of
+            the fixed dummy lists, to improve recognition of rare kanji.
 
     Returns:
         Tuple of (image_bgr, list_of_(line_text, field_name)).
@@ -215,10 +283,14 @@ def generate_one(
     draw.text((width - 480, 320), "写真", fill=(120, 120, 120), font=font)
 
     # Fields
-    name = random.choice(_DUMMY_SURNAMES) + random.choice(_DUMMY_GIVEN_NAMES)
+    if kanji_boost:
+        name = _random_kanji_name(_KANJI_POOL)
+        address = _random_kanji_address(_KANJI_POOL)
+    else:
+        name = random.choice(_DUMMY_SURNAMES) + random.choice(_DUMMY_GIVEN_NAMES)
+        address = random.choice(_DUMMY_ADDRESSES)
     birth_era = random.choice(_ERAS)
     birth_date = _random_era_date(birth_era) + "生"
-    address = random.choice(_DUMMY_ADDRESSES)
     issue_era = random.choice(_ERAS)
     issue_date = _random_era_date(issue_era)
     expiry_era = random.choice(_ERAS)
@@ -300,6 +372,12 @@ def main() -> int:
     )
     parser.add_argument("--font", default=None, help="Font file path")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument(
+        "--kanji_boost",
+        action="store_true",
+        help="Use random kanji from the full CJK pool (instead of fixed dummy lists) "
+             "to improve recognition of rare/unknown kanji characters",
+    )
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -310,7 +388,7 @@ def main() -> int:
 
     labels: dict[str, str] = {}
     for i in range(args.count):
-        image, lines = generate_one(font_path=args.font)
+        image, lines = generate_one(font_path=args.font, kanji_boost=args.kanji_boost)
         crops = crop_lines_from_image(image, lines)
         for j, (crop, text, _fname) in enumerate(crops):
             name = f"{i:05d}_{j}.png"

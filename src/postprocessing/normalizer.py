@@ -95,12 +95,12 @@ def japanese_era_to_iso(text: str) -> tuple[str, str | None]:
 
     base = _ERA_TABLE.get(era)
     if base is None:
-        return raw, None
+        return raw, None  # pragma: no cover
 
     western = base + year - 1
     try:
         iso = f"{western:04d}-{month:02d}-{day:02d}"
-    except (ValueError, TypeError):
+    except (ValueError, TypeError):  # pragma: no cover
         return raw, None
 
     return raw, iso

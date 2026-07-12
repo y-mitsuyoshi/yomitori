@@ -274,6 +274,16 @@ TrOCRベースモデル（画像エンコーダはそのまま）
 | `xlm-roberta-base`（デフォルト） | MIT | 100言語（日本語・英語・中国語等） | `--decoder_tokenizer xlm-roberta-base` |
 | `cl-tohoku/bert-base-japanese-v3` | Apache 2.0 | 日本語のみ | `--decoder_tokenizer cl-tohoku/bert-base-japanese-v3` |
 | `bert-base-multilingual-cased` | Apache 2.0 | 多言語 | `--decoder_tokenizer bert-base-multilingual-cased` |
+| `none`（ベースモデル内蔵） | — | ベースモデルに依存 | `--decoder_tokenizer none` |
+
+### ベースモデルの選択肢
+
+| ベースモデル | ライセンス | 特徴 | 指定方法 |
+|---|---|---|---|
+| `microsoft/trocr-base-printed`（デフォルト） | MIT | 英語専用デコーダ。多言語トークナイザーと組み合わせて使用 | `--base_model microsoft/trocr-base-printed` |
+| `kha-white/manga-ocr-base` | Apache 2.0 | 日本語GPT-2デコーダ内蔵。外部トークナイザー不要 | `--base_model kha-white/manga-ocr-base --decoder_tokenizer none` |
+
+> **manga-ocr-base を使うメリット**: 最初から日本語辞書（GPT-2ベース）で事前学習されているため、`xlm-roberta-base` や `cl-tohoku` などの外部トークナイザーを借りてくる必要がありません。語彙のリサイズも不要で、そのままファインチューニングできます。商用利用可能（Apache 2.0）。
 
 ### 手順
 
@@ -299,7 +309,17 @@ docker compose run --rm train python -m training.train_trocr \
     --epochs 5 \
     --batch_size 8
 
-# 4. 学習済みモデルを確認
+# 4. manga-ocr-base（日本語学習済み）をベースに使う場合
+#    外部トークナイザー不要、デコーダの語彙リサイズも不要
+docker compose run --rm train python -m training.train_trocr \
+    --data_dir /opt/ml/code/data/synthetic/driver_license/ \
+    --output_dir /opt/ml/model \
+    --base_model kha-white/manga-ocr-base \
+    --decoder_tokenizer none \
+    --epochs 5 \
+    --batch_size 8
+
+# 5. 学習済みモデルを確認
 docker compose run --rm dev ls -la /opt/ml/model/
 ```
 
@@ -365,6 +385,59 @@ docker compose run --rm train python -m training.train_trocr \
 docker compose run --rm -p 8080:8080 -e YOMITORI_MODEL_DIR=/opt/ml/model/v2 serve
 ```
 
+#### 4. 日本語特化モデルと多言語対応モデルの二重起動と自動ルーティング
+
+商用利用において、「日本の身分証（免許証・マイナンバーカード）」は高速かつ高精度な日本語特化モデル（例：東北大学BERTトークナイザー版）で読み取り、「在留カードやパスポート」は多言語対応モデル（例：Facebook XLM-RoBERTa版）で読み取る、といった**自動使い分け（ルーティング）**が可能です。
+
+##### ① ディレクトリ構成
+以下のように `YOMITORI_MODEL_DIR`（デフォルト: `/opt/ml/model`）配下に `japanese` と `multilingual` という名前でそれぞれのモデルを配置します。
+
+```
+/opt/ml/model/
+├── japanese/         # 日本語特化モデル (cl-tohoku で学習)
+│   ├── config.json
+│   └── pytorch_model.bin
+└── multilingual/     # 多言語対応モデル (xlm-roberta-base で学習)
+    ├── config.json
+    └── pytorch_model.bin
+```
+
+##### ② 各モデルの学習方法
+各々のモデルは、辞書（`--decoder_tokenizer`）を指定して別々の出力先に保存します。
+
+* **日本語特化モデルの学習**:
+  ```bash
+  docker compose run --rm train python -m training.train_trocr \
+      --base_model microsoft/trocr-base-printed \
+      --decoder_tokenizer cl-tohoku/bert-base-japanese-v3 \
+      --data_dir /opt/ml/code/data/synthetic/driver_license/ \
+      --output_dir /opt/ml/model/japanese \
+      --epochs 5
+  ```
+
+* **多言語対応モデルの学習**:
+  ```bash
+  docker compose run --rm train python -m training.train_trocr \
+      --base_model microsoft/trocr-base-printed \
+      --decoder_tokenizer xlm-roberta-base \
+      --data_dir /opt/ml/code/data/synthetic/driver_license/ \
+      --output_dir /opt/ml/model/multilingual \
+      --epochs 5
+  ```
+
+##### ③ サーバーの起動とルーティング挙動
+上記のようにモデルを配置して推論サーバーを起動すると、自動的に両方のモデルがロードされます。
+
+```bash
+docker compose up -d serve
+```
+
+リクエストの画像からカードの種類が判定されたのち、内部で自動的に以下の振り分けが行われます。
+* `passport` (パスポート)、`residence_card_front` (在留カード) ➡ **多言語対応モデル (`multilingual`)** で推論
+* `driver_license_front` (運転免許証)、`mynumber_card_front` (マイナンバーカード) ➡ **日本語特化モデル (`japanese`)** で推論
+
+*(※サブフォルダが存在しない場合は、従来通り `/opt/ml/model` 直下のモデルのみを読み込み、両方のルーティングで共通して使用する後方互換モードとして動作します)*
+
 ---
 
 ### 学習後に推論する
@@ -407,6 +480,23 @@ data/synthetic/driver_license/
 ```
 
 日本語フォント（Noto Sans CJK JP / IPA フォント）は Docker イメージに組み込み済みです。
+
+### 文字種の拡張（`--kanji_boost`）
+
+デフォルトのダミーデータ（40名字 × 30名前 = 1,200通り）は、本番で遭遇する多様な漢字を網羅できません。`--kanji_boost` オプションを付けると、CJK統合漢字プール（約5,000字）からランダムに漢字を生成した氏名・住所を使用します。これにより、未知の漢字に対する認識精度が向上します。
+
+```bash
+# 通常のダミーデータ（固定リストから生成）
+docker compose run --rm dev python -m training.generate_synthetic_data \
+    --count 500 --output /opt/ml/code/data/synthetic/driver_license/
+
+# 漢字ブーストモード（ランダム漢字で文字種を拡張）
+docker compose run --rm dev python -m training.generate_synthetic_data \
+    --count 500 --kanji_boost \
+    --output /opt/ml/code/data/synthetic/driver_license_kanji/
+```
+
+> **商用リリースに向けた推奨戦略**: 固定リスト（`--kanji_boost` なし）で基本構造を学習させた後、`--kanji_boost` ありのデータで追加学習（継続学習）することで、両方の精度を確保できます。
 
 ---
 
@@ -661,6 +751,9 @@ def build_registry() -> DocumentTypeRegistry:
 | 前処理 | OpenCV | Apache 2.0 |
 | 文字検出 | docTR (Mindee) | Apache 2.0 |
 | 文字認識 | Microsoft TrOCR | MIT |
+| 文字認識（日本語学習済みベース） | kha-white/manga-ocr-base | Apache 2.0 |
+| トークナイザー（多言語） | Facebook xlm-roberta-base | MIT |
+| トークナイザー（日本語特化） | 東北大学 cl-tohoku/bert-base-japanese-v3 | Apache 2.0 |
 | デプロイ | Amazon SageMaker | Apache 2.0 |
 | 学習 | HuggingFace Transformers | Apache 2.0 |
 | コンテナ | Docker + PyTorch 2.6 + CUDA 12.8 | Apache 2.0 |
@@ -739,6 +832,10 @@ yomitori/
 │   ├── pipeline/                    # E2Eパイプライン（共通・変更不要）
 │   ├── postprocessing/              # 後処理（バリデーション・正規化）
 │   ├── document_types/              # ★ 書類タイププラグイン
+│   │   ├── base.py                  # DocumentType ABC・Zone・ValidationRule
+│   │   ├── registry.py              # 自動判定レジストリ
+│   │   ├── driver_license.py        # 運転免許証（表面）
+│   │   └── mynumber_card.py         # マイナンバーカード（表面）
 │   └── utils/                       # ユーティリティ
 │
 ├── training/

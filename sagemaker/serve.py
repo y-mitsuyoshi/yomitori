@@ -44,6 +44,7 @@ async def lifespan(app: FastAPI):
 
     from src.detection.doctr_detector import DoctrDetector
     from src.document_types.driver_license import DriverLicenseFront
+    from src.document_types.mynumber_card import MyNumberCardFront
     from src.document_types.registry import DocumentTypeRegistry
     from src.postprocessing.validator import Validator
     from src.recognition.trocr_recognizer import TrocrRecognizer
@@ -53,34 +54,65 @@ async def lifespan(app: FastAPI):
         logger.warning("CUDA not available, falling back to CPU")
         device = "cpu"
 
-    model_dir = os.environ.get("YOMITORI_MODEL_DIR", "/opt/ml/model")
+    model_dir = os.environ.get("YOMITOROR_MODEL_DIR", os.environ.get("YOMITORI_MODEL_DIR", "/opt/ml/model"))
 
-    finetuned_path = None
+    ja_path = None
+    multi_path = None
     model_path = Path(model_dir)
-    if model_path.exists():
-        if (model_path / "config.json").exists():
-            finetuned_path = str(model_path)
-        elif (model_path / "trocr" / "config.json").exists():
-            finetuned_path = str(model_path / "trocr")
-        else:
-            for sub in sorted(model_path.iterdir()):
-                if sub.is_dir() and (sub / "config.json").exists():
-                    finetuned_path = str(sub)
-                    break
+
+    # Check for dedicated subfolders first
+    if (model_path / "japanese").exists():
+        if (model_path / "japanese" / "config.json").exists():
+            ja_path = str(model_path / "japanese")
+        elif (model_path / "japanese" / "trocr" / "config.json").exists():
+            ja_path = str(model_path / "japanese" / "trocr")
+
+    if (model_path / "multilingual").exists():
+        if (model_path / "multilingual" / "config.json").exists():
+            multi_path = str(model_path / "multilingual")
+        elif (model_path / "multilingual" / "trocr" / "config.json").exists():
+            multi_path = str(model_path / "multilingual" / "trocr")
+
+    # Fallback to auto-detection from root dir if not found
+    if ja_path is None:
+        if model_path.exists():
+            if (model_path / "config.json").exists():
+                ja_path = str(model_path)
+            elif (model_path / "trocr" / "config.json").exists():
+                ja_path = str(model_path / "trocr")
+            else:
+                for sub in sorted(model_path.iterdir()):
+                    if sub.is_dir() and (sub / "config.json").exists():
+                        ja_path = str(sub)
+                        break
+
+    if multi_path is None:
+        multi_path = ja_path
 
     registry = DocumentTypeRegistry()
     registry.register(DriverLicenseFront())
+    registry.register(MyNumberCardFront())
 
     detector = DoctrDetector(device=device)
-    recognizer = TrocrRecognizer(device=device, finetuned_path=finetuned_path)
+    
+    logger.info("Initializing Japanese recognizer from %s", ja_path)
+    recognizer_ja = TrocrRecognizer(device=device, finetuned_path=ja_path)
+    
+    if multi_path and multi_path != ja_path:
+        logger.info("Initializing Multilingual recognizer from %s", multi_path)
+        recognizer_multi = TrocrRecognizer(device=device, finetuned_path=multi_path)
+    else:
+        logger.info("Using Japanese recognizer as fallback for multilingual")
+        recognizer_multi = recognizer_ja
 
     _MODEL = {
         "registry": registry,
         "detector": detector,
-        "recognizer": recognizer,
+        "recognizer_ja": recognizer_ja,
+        "recognizer_multi": recognizer_multi,
         "validator": Validator(),
     }
-    logger.info("Model loaded (finetuned_path=%s, device=%s)", finetuned_path, device)
+    logger.info("Models loaded (ja=%s, multi=%s, device=%s)", ja_path, multi_path, device)
     yield
 
 
@@ -150,16 +182,94 @@ async def invocations(request: Request) -> dict:
 
     extractor = FieldExtractor(doc_type=doc_type)
 
+    # Route based on document type: passport/residence card use multilingual, others use Japanese
+    if doc_type.document_type_id in ("passport", "residence_card_front"):
+        recognizer = _MODEL["recognizer_multi"]
+    else:
+        recognizer = _MODEL["recognizer_ja"]
+
     engine = OCREngine(
         doc_type=doc_type,
         detector=_MODEL["detector"],
-        recognizer=_MODEL["recognizer"],
+        recognizer=recognizer,
         extractor=extractor,
         validator=_MODEL["validator"],
     )
 
     result = engine.process(image)
     return result
+
+
+@app.post("/batch-invocations")
+async def batch_invocations(request: Request) -> dict:
+    """Run OCR on multiple images in a single request.
+
+    Accepts a JSON array of base64-encoded images, or a multipart request
+    with multiple image files. Returns a list of OCR results.
+
+    JSON format:
+        {"images": ["base64img1", "base64img2", ...], "document_type": "optional"}
+
+    Args:
+        request: FastAPI Request object.
+
+    Returns:
+        JSON with "results" key containing a list of OCR result dicts.
+
+    Raises:
+        HTTPException: If the request is invalid or model not loaded.
+    """
+    from src.pipeline.field_extractor import FieldExtractor
+    from src.pipeline.ocr_engine import OCREngine
+    from src.utils.image_utils import decode_base64_image, decode_image
+
+    if _MODEL is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    content_type = request.headers.get("content-type", "")
+
+    if "application/json" in content_type:
+        body = await request.json()
+        if "images" not in body:
+            raise HTTPException(status_code=400, detail="JSON must contain 'images' (list of base64)")
+        document_type = body.get("document_type")
+        images = []
+        for b64 in body["images"]:
+            try:
+                images.append(decode_base64_image(b64))
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Failed to decode image: {e}")
+    else:
+        raw = await request.body()
+        if not raw:
+            raise HTTPException(status_code=400, detail="Request body is empty")
+        raise HTTPException(status_code=400, detail="Batch endpoint requires JSON with 'images' array")
+
+    registry = _MODEL["registry"]
+    results = []
+    for image in images:
+        if document_type:
+            doc_type = registry.get_by_id(document_type)
+        else:
+            doc_type = registry.detect(image)
+
+        extractor = FieldExtractor(doc_type=doc_type)
+
+        if doc_type.document_type_id in ("passport", "residence_card_front"):
+            recognizer = _MODEL["recognizer_multi"]
+        else:
+            recognizer = _MODEL["recognizer_ja"]
+
+        engine = OCREngine(
+            doc_type=doc_type,
+            detector=_MODEL["detector"],
+            recognizer=recognizer,
+            extractor=extractor,
+            validator=_MODEL["validator"],
+        )
+        results.append(engine.process(image))
+
+    return {"results": results}
 
 
 def main() -> None:

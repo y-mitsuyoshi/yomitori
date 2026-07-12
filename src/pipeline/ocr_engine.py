@@ -13,6 +13,8 @@ from src.postprocessing.normalizer import (
     japanese_era_to_iso,
     remove_label,
 )
+from src.postprocessing.rules.base_rules import BaseRules
+from src.postprocessing.rules.driver_license_rules import DriverLicenseRules
 from src.postprocessing.validator import Validator
 from src.preprocessing.homography import HomographyCorrector
 from src.recognition.trocr_recognizer import TrocrRecognizer
@@ -21,6 +23,10 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 _CONFIDENCE_THRESHOLD = 0.7
+
+_RULES_REGISTRY: dict[str, BaseRules] = {
+    "driver_license_front": DriverLicenseRules(),
+}
 
 
 class OCREngine:
@@ -76,13 +82,21 @@ class OCREngine:
         # 5. Postprocessing (normalization + validation)
         result_fields, warnings = self._postprocess(fields_raw)
 
-        # 6. Status determination
-        status = self._determine_status(result_fields, preprocessing_info)
+        # 6. Cross-field validation (extra_validate)
+        cross_warnings = self._cross_validate(result_fields)
+        warnings.extend(cross_warnings)
+
+        # 7. Overall confidence score
+        overall_confidence = self._compute_overall_confidence(result_fields)
+
+        # 8. Status determination
+        status = self._determine_status(result_fields, preprocessing_info, warnings)
 
         return {
             "status": status,
             "document_type": self.doc_type.document_type_id,
             "fields": result_fields,
+            "overall_confidence": overall_confidence,
             "preprocessing": preprocessing_info,
             "warnings": warnings,
         }
@@ -213,14 +227,45 @@ class OCREngine:
 
         return result_fields, warnings
 
+    def _cross_validate(self, result_fields: dict[str, dict]) -> list[str]:
+        """Run cross-field validation rules if available for this document type.
+
+        Args:
+            result_fields: Processed fields.
+
+        Returns:
+            List of cross-field validation warnings.
+        """
+        rules_plugin = _RULES_REGISTRY.get(self.doc_type.document_type_id)
+        if rules_plugin is None:
+            return []
+        return rules_plugin.extra_validate(result_fields)
+
+    @staticmethod
+    def _compute_overall_confidence(result_fields: dict[str, dict]) -> float:
+        """Compute the mean confidence across all fields.
+
+        Args:
+            result_fields: Processed fields.
+
+        Returns:
+            Average confidence, or 0.0 if no fields.
+        """
+        if not result_fields:
+            return 0.0
+        total = sum(f.get("confidence", 0.0) for f in result_fields.values())
+        return round(total / len(result_fields), 4)
+
     def _determine_status(
-        self, result_fields: dict[str, dict], preprocessing_info: dict
+        self, result_fields: dict[str, dict], preprocessing_info: dict,
+        warnings: list[str] | None = None,
     ) -> str:
         """Determine the overall processing status.
 
         Args:
             result_fields: Processed fields.
             preprocessing_info: Preprocessing metadata.
+            warnings: Accumulated warnings (affects status if non-empty from cross-field).
 
         Returns:
             One of ``"success"``, ``"partial"``, ``"failed"``.

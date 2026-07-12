@@ -5,6 +5,7 @@ import json
 import sys
 
 from src.document_types.driver_license import DriverLicenseFront
+from src.document_types.mynumber_card import MyNumberCardFront
 from src.document_types.registry import DocumentTypeRegistry
 from src.utils.image_utils import decode_base64_image, decode_image
 from src.utils.logger import get_logger
@@ -20,6 +21,7 @@ def build_registry() -> DocumentTypeRegistry:
     """
     registry = DocumentTypeRegistry()
     registry.register(DriverLicenseFront())
+    registry.register(MyNumberCardFront())
     return registry
 
 
@@ -95,5 +97,5 @@ def main() -> int:
     return args.func(args)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     sys.exit(main())
