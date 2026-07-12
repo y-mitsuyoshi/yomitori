@@ -31,6 +31,7 @@ def model_fn(model_dir: str) -> dict:
     global _MODEL
     from src.detection.doctr_detector import DoctrDetector
     from src.document_types.driver_license import DriverLicenseFront
+    from src.document_types.mynumber_card import MyNumberCardFront
     from src.document_types.registry import DocumentTypeRegistry
     from src.pipeline.field_extractor import FieldExtractor
     from src.pipeline.ocr_engine import OCREngine
@@ -38,14 +39,24 @@ def model_fn(model_dir: str) -> dict:
     from src.recognition.trocr_recognizer import TrocrRecognizer
 
     device = os.environ.get("SAGEMAKER_DEVICE", "cuda")
-    finetuned_path = str(Path(model_dir) / "trocr") if (Path(model_dir) / "trocr").exists() else None
-    if finetuned_path is None and Path(model_dir).exists():
-        # Check if model files are directly in model_dir
-        if (Path(model_dir) / "config.json").exists():
-            finetuned_path = model_dir
+    model_path = Path(model_dir)
+
+    # サブディレクトリ（japanese/ や multilingual/）を探索
+    finetuned_path = None
+    if model_path.exists():
+        if (model_path / "config.json").exists():
+            finetuned_path = str(model_path)
+        elif (model_path / "trocr" / "config.json").exists():
+            finetuned_path = str(model_path / "trocr")
+        else:
+            for sub in sorted(model_path.iterdir()):
+                if sub.is_dir() and (sub / "config.json").exists():
+                    finetuned_path = str(sub)
+                    break
 
     registry = DocumentTypeRegistry()
     registry.register(DriverLicenseFront())
+    registry.register(MyNumberCardFront())
 
     detector = DoctrDetector(device=device)
     recognizer = TrocrRecognizer(device=device, finetuned_path=finetuned_path)
