@@ -564,7 +564,7 @@ SageMaker SDK 経由で学習コンテナを構築し、学習を実行します
 
 ```bash
 docker compose run --rm -v /var/run/docker.sock:/var/run/docker.sock dev \
-    python -m sagemaker.local_train
+    python -m scripts.local_train
 ```
 
 学習完了後、モデルアーティファクトが作成されます。
@@ -583,7 +583,7 @@ SageMaker SDK 経由でローカルエンドポイントを構築し、サンプ
 
 ```bash
 docker compose run --rm -v /var/run/docker.sock:/var/run/docker.sock dev \
-    python -m sagemaker.local_deploy --sample data/samples/sample_license.jpg
+    python -m scripts.local_deploy --sample data/samples/sample_license.jpg
 ```
 
 推論結果がJSONで標準出力されます。
@@ -594,7 +594,7 @@ docker compose run --rm -v /var/run/docker.sock:/var/run/docker.sock dev \
 
 ```bash
 docker compose run --rm -v /var/run/docker.sock:/var/run/docker.sock dev \
-    python -m sagemaker.local_deploy --sample data/samples/sample_license2.jpg
+    python -m scripts.local_deploy --sample data/samples/sample_license2.jpg
 ```
 
 > **注意:** SageMaker Local Mode は Docker-in-Docker を使用するため、ホストの Docker ソケット (`/var/run/docker.sock`) をマウントしています。
@@ -634,7 +634,7 @@ docker push <account-id>.dkr.ecr.<region>.amazonaws.com/yomitori:infer
 ### 4. エンドポイントをデプロイ
 
 ```bash
-python -m sagemaker.cloud_deploy \
+python -m scripts.cloud_deploy \
     --model_data s3://your-bucket/yomitori/model.tar.gz \
     --ecr_image <account-id>.dkr.ecr.<region>.amazonaws.com/yomitori:infer \
     --role arn:aws:iam::<account-id>:role/service-role/AmazonSageMaker-ExecutionRole \
@@ -856,10 +856,12 @@ yomitori/
 │
 ├── sagemaker/
 │   ├── serve.py                     # FastAPI 推論サーバー
+│   └── inference_entry_point.py     # SageMaker推論エントリポイント
+│
+├── scripts/                         # デプロイスクリプト
 │   ├── local_train.py               # SageMaker Local Mode 学習
 │   ├── local_deploy.py              # SageMaker Local Mode デプロイ
-│   ├── cloud_deploy.py              # クラウドデプロイ
-│   └── inference_entry_point.py     # SageMaker推論エントリポイント
+│   └── cloud_deploy.py              # クラウドデプロイ
 │
 ├── tests/                           # ユニットテスト
 ├── notebooks/                       # 探索・デバッグ用ノートブック

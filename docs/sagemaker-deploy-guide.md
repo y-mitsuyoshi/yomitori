@@ -226,7 +226,7 @@ aws iam list-roles --path-prefix /service-role/ | grep SageMaker
 ### エンドポイントをデプロイ
 
 ```bash
-docker compose run --rm dev python -m sagemaker.cloud_deploy \
+docker compose run --rm dev python -m scripts.cloud_deploy \
     --model_data s3://yomitori-models-<your-name>/driver_license/v1/model.tar.gz \
     --ecr_image ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/yomitori:infer \
     --role arn:aws:iam::${AWS_ACCOUNT_ID}:role/service-role/AmazonSageMaker-ExecutionRole \
@@ -362,7 +362,7 @@ aws sagemaker delete-model --model-name ${ENDPOINT_NAME}-model
 aws s3 cp model.tar.gz s3://yomitori-models-<your-name>/driver_license/v2/model.tar.gz
 
 # 2. 新しいエンドポイントをデプロイ（Blue-Green Deployment）
-docker compose run --rm dev python -m sagemaker.cloud_deploy \
+docker compose run --rm dev python -m scripts.cloud_deploy \
     --model_data s3://yomitori-models-<your-name>/driver_license/v2/model.tar.gz \
     --ecr_image ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/yomitori:infer \
     --role arn:aws:iam::${AWS_ACCOUNT_ID}:role/service-role/AmazonSageMaker-ExecutionRole \
@@ -452,7 +452,7 @@ aws ecr get-login-password | docker login --username AWS --password-stdin ${AWS_
 
 ```bash
 # インスタンスタイプを上げる
-docker compose run --rm dev python -m sagemaker.cloud_deploy \
+docker compose run --rm dev python -m scripts.cloud_deploy \
     --model_data s3://... \
     --ecr_image ... \
     --role ... \

@@ -1,6 +1,6 @@
 """Cloud deployment script for SageMaker.
 
-Run with: python -m sagemaker.cloud_deploy --model_data s3://... --ecr_image <uri> --role <arn>
+Run with: python -m scripts.cloud_deploy --model_data s3://... --ecr_image <uri> --role <arn>
 
 Prerequisites:
   - AWS credentials configured (aws configure)
@@ -9,7 +9,6 @@ Prerequisites:
 """
 
 import argparse
-import sys
 from pathlib import Path
 
 from src.utils.logger import get_logger

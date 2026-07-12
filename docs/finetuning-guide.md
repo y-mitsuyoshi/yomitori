@@ -163,7 +163,7 @@ sudo chmod 666 /var/run/docker.sock
 ```bash
 # サンプル画像で推論テスト
 docker compose run --rm -v /var/run/docker.sock:/var/run/docker.sock dev \
-    python -m sagemaker.local_deploy --sample data/samples/sample_license.jpg
+    python -m scripts.local_deploy --sample data/samples/sample_license.jpg
 ```
 
 **実行の流れ:**
@@ -203,7 +203,7 @@ docker compose run --rm -v /var/run/docker.sock:/var/run/docker.sock dev \
 ```bash
 # 別のサンプル画像で推論
 docker compose run --rm -v /var/run/docker.sock:/var/run/docker.sock dev \
-    python -m sagemaker.local_deploy --sample data/samples/sample_license2.jpg
+    python -m scripts.local_deploy --sample data/samples/sample_license2.jpg
 ```
 
 #### 4-5: クリーンアップ
@@ -227,7 +227,7 @@ rm -f model.tar.gz
 | 仕組み | SageMaker SDK がコンテナを構築・実行 | FastAPI サーバーが直接推論 |
 | クラウド互換性 | あり（`instance_type` を変更するだけで移行） | なし |
 | エンドポイント | SageMaker Predictor API | `/ping`, `/invocations` |
-| 実行コマンド | `python -m sagemaker.local_deploy` | `docker compose up serve` |
+| 実行コマンド | `python -m scripts.local_deploy` | `docker compose up serve` |
 
 迅速にテストしたい場合は `docker compose up serve` も使用できます:
 

@@ -1,27 +1,15 @@
 """SageMaker Local Mode deployment and test script.
 
-Run with: python -m sagemaker.local_deploy [--sample <path>]
+Run with: python -m scripts.local_deploy [--sample <path>]
 
 Prerequisites:
-  - local_train.py has been run (model artifacts exist)
+  - model.tar.gz exists (run: docker compose run --rm dev bash -c "cd /opt/ml/model/japanese && tar czf /opt/ml/code/model.tar.gz --exclude='checkpoint-*' .")
   - Docker installed and Docker socket accessible
 """
 
 import json
 import sys
 from pathlib import Path
-
-# プロジェクト内の sagemaker/ ディレクトリが SageMaker SDK と同名で衝突するのを防ぐ
-# site-packages を優先して読み込む
-_sdk_path = "/usr/local/lib/python3.10/dist-packages"
-if _sdk_path not in sys.path:
-    sys.path.insert(0, _sdk_path)
-# プロジェクトの sagemaker パッケージがキャッシュされていれば削除
-for mod in list(sys.modules):
-    if mod.startswith("sagemaker") and not mod.startswith("sagemaker.local"):
-        mod_obj = sys.modules.get(mod)
-        if mod_obj and "/opt/ml/code" in getattr(mod_obj, "__file__", ""):
-            del sys.modules[mod]
 
 from src.utils.logger import get_logger
 
@@ -73,7 +61,7 @@ def main() -> None:
         logger.error(
             "model.tar.gz not found. Create it first:\n"
             "  docker compose run --rm dev bash -c "
-            "\"cd /opt/ml/model && tar czf /opt/ml/code/model.tar.gz .\""
+            "\"cd /opt/ml/model/japanese && tar czf /opt/ml/code/model.tar.gz --exclude='checkpoint-*' .\""
         )
         raise FileNotFoundError("model.tar.gz not found")
 
