@@ -135,45 +135,26 @@ SageMaker はモデルを `model.tar.gz` 形式で扱います。学習済みモ
 
 ```bash
 # japanese/ ディレクトリの中身を model.tar.gz に圧縮
-docker compose run --rm dev bash -c "cd /opt/ml/model/japanese && tar czf /opt/ml/code/model.tar.gz ."
+docker compose run --rm dev bash -c "cd /opt/ml/model/japanese && tar czf /opt/ml/code/model.tar.gz --exclude='checkpoint-*' ."
 ```
 
-> **注意**: `checkpoint-*/` ディレクトリも含まれますが、推論には使われないため問題ありません。
-> ファイルサイズを小さくしたい場合は除外できます:
-> ```bash
-> docker compose run --rm dev bash -c "cd /opt/ml/model/japanese && tar czf /opt/ml/code/model.tar.gz --exclude='checkpoint-*' ."
-> ```
+#### 4-2: SageMaker Local Mode で推論テスト
 
-#### 4-2: Docker ソケットの確認
-
-SageMaker Local Mode は Docker-in-Docker を使用するため、ホストの Docker ソケットをマウントします。
-WSL2 環境の場合は事前に以下の設定が必要な場合があります:
+SageMaker Local Mode は Docker-in-Docker を使用します。
+`dev` サービスにはDockerソケットがマウント済みなので、そのまま実行できます:
 
 ```bash
-# Docker ソケットの確認
-ls -la /var/run/docker.sock
-
-# WSL2 でソケットが見つからない場合
-sudo ln -sf /mnt/wsl/docker-desktop/shared-sockets/guest-services/docker.proxy.sock /var/run/docker.sock
-sudo chmod 666 /var/run/docker.sock
-```
-
-#### 4-3: 推論テスト（ホスト側から実行）
-
-学習済みモデルを使って推論テストを行います。
-**ホスト側（WSLターミナル）から直接実行してください**（Dockerコンテナ内からではありません）:
-
-```bash
-# サンプル画像で推論テスト（docker compose up serve + HTTPリクエストを自動実行）
-python3 -m scripts.local_deploy --sample data/samples/sample_license.jpg
+# SageMaker Local Mode で推論テスト（デフォルト方式）
+docker compose run --rm dev python -m scripts.local_deploy --sample data/samples/sample_license.jpg
 ```
 
 **実行の流れ:**
-1. `docker compose up -d serve` で推論サーバーを起動
-2. サーバーの起動を待機（`/ping` エンドポイントで確認）
-3. サンプル画像をHTTP POSTで送信
-4. 推論結果をJSONで表示
-5. `docker compose down` でサーバーを停止
+1. `model.tar.gz` を読み込み
+2. `yomitori:infer` イメージでローカルエンドポイントを構築（SageMaker SDK経由）
+3. サンプル画像をエンドポイントに送信
+4. 推論結果をJSONで標準出力に表示
+
+> **model.tar.gz が無い場合**: スクリプトが自動的に `/opt/ml/model/japanese` から作成します。
 
 **出力例:**
 ```json
@@ -201,34 +182,44 @@ python3 -m scripts.local_deploy --sample data/samples/sample_license.jpg
 > **v1の注意点**: データ量が少ないため、認識結果はほとんど意味のない文字列になります。
 > これは正常な動作です。v1の目的は「パイプライン全体が動くこと」の確認です。
 
-#### 4-4: 別のサンプル画像でテスト
+#### 4-3: 別のサンプル画像でテスト
 
 ```bash
 # 別のサンプル画像で推論
-python3 -m scripts.local_deploy --sample data/samples/sample_license2.jpg
+docker compose run --rm dev python -m scripts.local_deploy --sample data/samples/sample_license2.jpg
+```
+
+#### 4-4: serve方式でのテスト（代替）
+
+SageMaker Local Modeの代わりに `docker compose up serve` + HTTPリクエスト方式も使えます:
+
+```bash
+docker compose run --rm dev python -m scripts.local_deploy --sample data/samples/sample_license.jpg --method serve
 ```
 
 #### 4-5: クリーンアップ
 
-`local_deploy` スクリプトは終了時に自動的に `docker compose down` を実行します。
-手動で停止が必要な場合:
+SageMaker Local Mode はバックグラウンドでDockerコンテナを作成します。
+テスト終了後にクリーンアップしてください:
 
 ```bash
-docker compose down
+# ローカルエンドポイントのコンテナを削除
+docker ps -a --filter "name=sagemaker" --format "{{.ID}}" | xargs -r docker rm -f
 
 # model.tar.gz を削除（不要な場合）
 rm -f model.tar.gz
 ```
 
-#### 4-6: （参考）docker compose up serve との違い
+#### 4-6: （参考）2つの方式の違い
 
-| | SageMaker Local Mode | docker compose up serve |
+| | SageMaker Local Mode (`--method sagemaker`) | serve方式 (`--method serve`) |
 |---|---|---|
 | 用途 | クラウド移行前の最終検証 | 開発・迅速な検証 |
 | 仕組み | SageMaker SDK がコンテナを構築・実行 | FastAPI サーバーが直接推論 |
 | クラウド互換性 | あり（`instance_type` を変更するだけで移行） | なし |
 | エンドポイント | SageMaker Predictor API | `/ping`, `/invocations` |
-| 実行コマンド | `python -m scripts.local_deploy` | `docker compose up serve` |
+| 実行コマンド | `docker compose run --rm dev python -m scripts.local_deploy` | `docker compose run --rm dev python -m scripts.local_deploy --method serve` |
+| デフォルト | ✅ こちらがデフォルト | |
 
 迅速にテストしたい場合は `docker compose up serve` も使用できます:
 

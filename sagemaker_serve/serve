@@ -1,0 +1,4 @@
+#!/bin/bash
+# SageMaker serving entry point
+# SageMaker Local Mode はこのスクリプトを `serve` コマンドとして実行する
+exec python -m sagemaker_serve.serve

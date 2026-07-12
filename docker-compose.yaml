@@ -26,6 +26,7 @@ services:
       - .:/opt/ml/code
       - yomitori-models:/opt/ml/model
       - yomitori-hf-cache:/root/.cache/huggingface
+      - /var/run/docker.sock:/var/run/docker.sock
     deploy:
       resources:
         reservations:
@@ -38,6 +39,7 @@ services:
       - AWS_DEFAULT_REGION=us-east-1
       - AWS_ACCESS_KEY_ID=dummy
       - AWS_SECRET_ACCESS_KEY=dummy
+      - DOCKER_HOST=unix:///var/run/docker.sock
 
   serve:
     build:

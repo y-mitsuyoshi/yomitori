@@ -28,6 +28,16 @@ htmlcov/
 # Docker artifacts
 model_output/
 model.tar.gz
+model.safetensors
+config.json
+generation_config.json
+preprocessor_config.json
+special_tokens_map.json
+tokenizer_config.json
+training_args.bin
+training_info.json
+vocab.txt
+sentencepiece.bpe.model
 
 # Training data (generated, not tracked)
 data/synthetic/

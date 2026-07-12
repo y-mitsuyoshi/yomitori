@@ -4,6 +4,12 @@ FROM yomitori:base
 
 COPY . /opt/ml/code/
 
+# SageMaker Local Mode は `serve` コマンドを実行する
+RUN chmod +x /opt/ml/code/sagemaker_serve/serve && \
+    ln -sf /opt/ml/code/sagemaker_serve/serve /usr/local/bin/serve
+
+ENV PATH="/usr/local/bin:${PATH}"
+
 EXPOSE 8080
 
-CMD ["python", "-m", "sagemaker_serve.serve"]
+CMD ["serve"]
