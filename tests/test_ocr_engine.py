@@ -209,17 +209,17 @@ def test_ocr_engine_cross_field_validation(mock_corrector_cls):
     detector = _make_mock_detector(detections)
     recognizer = _make_mock_recognizer([
         ("生年月日 令和5年1月1日", 0.95),
-        ("有効期限 昭和60年1月1日", 0.95),
+        ("有効期限 1985年1月1日", 0.95),
     ])
     engine = _make_engine(detector, recognizer)
     result = engine.process(np.zeros((100, 200, 3), dtype=np.uint8))
 
-    # birth_date ISO should be 2023-01-01, expiry_date ISO should be 1985-01-01
-    # So birth > expiry → cross-field warning
+    # birth_date ISO should be 2023-01-01, expiry_date value is "1985年1月1日" (西暦)
+    # So birth (2023) > expiry (1985) → cross-field warning
     birth = result["fields"].get("birth_date", {})
     expiry = result["fields"].get("expiry_date", {})
     assert birth.get("iso") == "2023-01-01"
-    assert expiry.get("iso") == "1985-01-01"
+    assert "1985" in expiry.get("value", "")
     cross_warnings = [w for w in result["warnings"] if "生年月日が有効期限より後" in w]
     assert len(cross_warnings) == 1
 

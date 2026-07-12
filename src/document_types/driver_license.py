@@ -39,7 +39,7 @@ class DriverLicenseFront(DocumentType):
                 normalize="fullwidth_to_halfwidth",
             ),
             "issue_date": Zone(
-                "issue_date", "交付",
+                "issue_date", "交付年月日",
                 0.00, 0.26, 0.70, 0.33,
                 label_remove=True,
                 date_format="japanese_era",
@@ -48,10 +48,9 @@ class DriverLicenseFront(DocumentType):
                 "expiry_date", "有効期限",
                 0.00, 0.33, 0.70, 0.40,
                 label_remove=True,
-                date_format="japanese_era",
             ),
             "conditions": Zone(
-                "conditions", "条件等",
+                "conditions", "免許の条件",
                 0.00, 0.40, 0.70, 0.56,
                 label_remove=True,
             ),
@@ -62,7 +61,7 @@ class DriverLicenseFront(DocumentType):
                 whitelist="0123456789",
             ),
             "license_type": Zone(
-                "license_type", "免許種類",
+                "license_type", "免許の種類",
                 0.00, 0.78, 0.70, 0.90,
                 label_remove=True,
             ),
@@ -80,8 +79,8 @@ class DriverLicenseFront(DocumentType):
                 description="和暦生年月日",
             ),
             "expiry_date": ValidationRule(
-                pattern=r"^(昭和|平成|令和)[0-9]+年[0-9]+月[0-9]+日",
-                description="和暦有効期限",
+                pattern=r"^[0-9]{4}年[0-9]+月[0-9]+日",
+                description="西暦有効期限",
             ),
         }
 

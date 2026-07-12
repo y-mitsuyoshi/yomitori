@@ -34,7 +34,7 @@ zones:
     y0: 0.26
     x1: 0.70
     y1: 0.33
-    label: "交付"
+    label: "交付年月日"
     label_remove: true
     date_format: "japanese_era"
   expiry_date:
@@ -44,13 +44,12 @@ zones:
     y1: 0.40
     label: "有効期限"
     label_remove: true
-    date_format: "japanese_era"
   conditions:
     x0: 0.00
     y0: 0.40
     x1: 0.70
     y1: 0.56
-    label: "条件等"
+    label: "免許の条件"
     label_remove: true
   license_number:
     x0: 0.00
@@ -65,7 +64,7 @@ zones:
     y0: 0.78
     x1: 0.70
     y1: 0.90
-    label: "免許種類"
+    label: "免許の種類"
     label_remove: true
 
 validation:
@@ -78,6 +77,6 @@ validation:
     description: "和暦生年月日"
     required: true
   expiry_date:
-    pattern: "^(昭和|平成|令和)[0-9]+年[0-9]+月[0-9]+日"
-    description: "和暦有効期限"
+    pattern: "^[0-9]{4}年[0-9]+月[0-9]+日"
+    description: "西暦有効期限"
     required: true

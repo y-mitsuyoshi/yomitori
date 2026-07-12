@@ -35,3 +35,7 @@ data/synthetic/
 # Sample images (may contain personal info — never track)
 data/samples/*
 !data/samples/.gitkeep
+
+# Postal data (downloaded at runtime, not tracked)
+data/postal/*
+!data/postal/.gitkeep

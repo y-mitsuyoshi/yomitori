@@ -25,8 +25,8 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 # ─── 人名データ（商用向け拡充版）─────────────────────────────────────
-# 全国の名字トップ300（厚生労働省「苗字ベスト1000」より抜粋）
-_DUMMY_SURNAMES = [
+# 全国の名字トップ300（重複なし・厚生労働省「苗字ベスト1000」より抜粋）
+_DUMMY_SURNAMES = list(dict.fromkeys([
     "佐藤", "鈴木", "高橋", "田中", "伊藤", "渡辺", "山本", "中村", "小林", "加藤",
     "吉田", "山田", "佐々木", "山口", "松本", "井上", "木村", "林", "斎藤", "清水",
     "山崎", "森", "池田", "橋本", "阿部", "石川", "前田", "藤田", "岡田", "後藤",
@@ -37,24 +37,28 @@ _DUMMY_SURNAMES = [
     "大野", "矢野", "高野", "三好", "安藤", "小松", "河野", "野村", "新井", "松村",
     "木下", "森田", "原田", "酒井", "菊池", "谷口", "青木", "柴田", "安田", "小山",
     "内田", "金井", "荒木", "田口", "岩崎", "杉本", "望月", "平田", "島田", "渡部",
-    "西村", "小田", "服部", "中川", "梅田", "飯田", "荒井", "鈴木", "大島", "川口",
-    "神田", "木村", "松崎", "森本", "本多", "吉川", "中井", "矢口", "横山", "山内",
+    "西村", "小田", "服部", "中川", "梅田", "飯田", "荒井", "大島", "川口",
+    "神田", "松崎", "森本", "本多", "吉川", "中井", "矢口", "横山", "山内",
     "浅野", "水野", "大西", "黒田", "田辺", "川島", "村上", "佐久間", "石井", "早川",
-    "松浦", "長田", "小野寺", "熊谷", "富田", "青木", "西田", "久保", "八木", "加茂",
+    "松浦", "長田", "小野寺", "熊谷", "富田", "西田", "久保", "八木", "加茂",
     "真田", "赤松", "市川", "川田", "神谷", "黒川", "中田", "西川", "根本", "今村",
-    "久米", "松木", "松崎", "山下", "増田", "藤井", "野口", "坂本", "石崎", "瀬戸",
-    "三上", "西尾", "松尾", "岸本", "中西", "大木", "吉村", "松下", "鶴田", "小島",
+    "久米", "松木", "山下", "増田", "藤井", "野口", "坂本", "石崎", "瀬戸",
+    "三上", "西尾", "松尾", "岸本", "大木", "吉村", "松下", "鶴田",
     "上野", "笠井", "中澤", "武田", "佐野", "畑中", "中条", "安東", "永田", "宮下",
     "森山", "大橋", "本間", "田島", "永山", "横田", "秋山", "柳田", "中谷", "大久保",
-    "松永", "中尾", "石原", "森川", "三輪", "五十嵐", "川上", "山脇", "宮川", "増田",
-    "杉田", "小原", "船橋", "日高", "佐伯", "香川", "井出", "松崎", "市村", "飯塚",
-    "坂田", "北村", "稲田", "中嶋", "松村", "宮島", "原口", "木原", "出口", "河合",
-    "木村", "川端", "平井", "桑原", "成田", "小倉", "沼田", "栗原", "植木", "松島",
-    "江口", "足立", "佐竹", "篠田", "佐々木", "東", "的場", "安齋", "浅見", "豊田",
-]
+    "松永", "中尾", "石原", "森川", "三輪", "五十嵐", "川上", "山脇", "宮川",
+    "杉田", "小原", "船橋", "日高", "佐伯", "香川", "井出", "市村", "飯塚",
+    "坂田", "北村", "稲田", "中嶋", "宮島", "原口", "木原", "出口", "河合",
+    "川端", "平井", "桑原", "成田", "小倉", "沼田", "栗原", "植木", "松島",
+    "江口", "足立", "佐竹", "篠田", "東", "的場", "安齋", "浅見", "豊田",
+    "大谷", "柴崎", "黒崎", "三島", "渋谷", "有馬", "西田", "野崎", "杉田", "古川",
+    "中井", "吉岡", "石田", "西尾", "森本", "松永", "高倉", "梅本", "青山", "藤本",
+    "西野", "中川", "岩田", "宮島", "島崎", "松原", "大石", "岡崎", "小西", "石田",
+    "中西", "村瀬", "藤本", "和田", "杉田", "中村", "石崎", "山田", "田中", "佐藤",
+]))
 
-# 名前データ（男女混合・幅広い年代カバー）
-_DUMMY_GIVEN_NAMES = [
+# 名前データ（男女混合・幅広い年代カバー・重複なし）
+_DUMMY_GIVEN_NAMES = list(dict.fromkeys([
     # 男性名（昭和〜令和世代）
     "太郎", "一郎", "二郎", "三郎", "健太", "健一", "直樹", "大輔", "翔太", "翔",
     "拓海", "蓮", "悠真", "海斗", "颯太", "大和", "陽翔", "悠人", "奏多", "心春",
@@ -69,8 +73,8 @@ _DUMMY_GIVEN_NAMES = [
     "美穂", "幸子", "和子", "恵子", "久美子", "由美子", "裕子", "京子", "明子", "佳子",
     "真理", "亜紀", "由紀", "幸恵", "富美子", "千代", "千鶴", "千尋", "美和", "美紀",
     "真由美", "恵", "直美", "友美", "裕美", "佳奈", "彩乃", "愛", "結愛", "美桜",
-    "朱里", "陽彩", "心愛", "結羽", "澪", "咲良", "美羽", "莉央", "朱音", "美桜",
-]
+    "朱里", "陽彩", "心愛", "結羽", "澪", "咲良", "美羽", "莉央", "朱音",
+]))
 
 # ─── 郵便局 KEN_ALL.CSV 読み込み ─────────────────────────────────────
 _KEN_ALL_PATHS = [
@@ -150,13 +154,18 @@ _DUMMY_ADDRESSES = [
 ]
 
 _ERAS = ["昭和", "平成", "令和"]
-_LICENSE_TYPES = ["普通", "中型", "大型", "自動二輪", "原付", "大型二輪", "けん引"]
+
+# 免許の種類（実際の免許証に印字される短縮表記）
+_LICENSE_TYPES = [
+    "普", "中", "大", "大特", "大自二", "普自二", "小自二", "原付", "小特", "け引",
+    "二種普", "二種中", "二種大", "二種大自二", "二種普自二", "二種大特", "二種け引",
+]
+
+# 免許の条件（実際の免許証に印字される制限・条件コード）
 _CONDITIONS = [
-    "眼鏡等", "普通", "中型", "大型", "自動二輪", "原付", "大型二輪",
-    "第一種普通", "第二種普通", "第一種中型", "第二種中型",
-    "第一種大型", "第二種大型", "第一種自動二輪", "第二種自動二輪",
-    "第一種原付", "第二種原付", "第一種大型二輪", "第二種大型二輪",
-    "けん引", "小型限定", "普通自動二輪", "AT限定",
+    "眼鏡等", "A 補聴器", "B 普通車に限る", "C 車椅子等", "D 補助者",
+    "E 特殊", "G 距離感", "AT限定", "小型限定", "中型車は8トンに限る",
+    "小型二輪に限る", "普通二輪に限る", "眼鏡", "聴",
     "", "", "",
 ]
 
@@ -383,6 +392,70 @@ def _random_era_date(era: str) -> str:
     return f"{era}{year}年{month}月{day}日"
 
 
+def _era_to_western(era: str, year: int) -> int:
+    """和暦年を西暦年に変換する。
+
+    Args:
+        era: 元号名。
+        year: 和暦年。
+
+    Returns:
+        西暦年。
+    """
+    _ERA_BASE = {"明治": 1868, "大正": 1912, "昭和": 1926, "平成": 1989, "令和": 2019}
+    base = _ERA_BASE.get(era, 1926)
+    return base + year - 1
+
+
+def _random_birth_date() -> tuple[str, str]:
+    """生年月日を生成する（和暦+西暦）。
+
+    運転免許取得可能な年齢（18歳以上）を考慮し、
+    昭和1年〜令和5年（2023年）の範囲で生成する。
+
+    Returns:
+        (和暦日付文字列, 西暦日付文字列) のタプル。
+    """
+    era = random.choice(["昭和", "平成", "令和"])
+    if era == "令和":
+        year = random.randint(1, 5)  # 2019-2023（18歳以上になる範囲）
+    elif era == "平成":
+        year = random.randint(1, 31)
+    else:
+        year = random.randint(25, 64)  # 1950-1989（昭和25年以降）
+    month = random.randint(1, 12)
+    day = random.randint(1, 28)
+    western = _era_to_western(era, year)
+    era_str = f"{era}{year}年{month}月{day}日"
+    western_str = f"{western}年{month}月{day}日"
+    return era_str, western_str
+
+
+def _random_issue_and_expiry() -> tuple[str, str]:
+    """交付日と有効期限を生成する。
+
+    交付日は過去3年以内、有効期限は交付日から3〜5年後とする。
+    有効期限は西暦表示（2020年以降の免許証は西暦表示）。
+
+    Returns:
+        (交付日和暦文字列, 有効期限西暦文字列) のタプル。
+    """
+    # 交付日: 過去3年以内（令和3年〜令和8年）
+    issue_era = "令和"
+    issue_year = random.randint(3, 8)  # 2021-2026
+    month = random.randint(1, 12)
+    day = random.randint(1, 28)
+    issue_str = f"{issue_era}{issue_year}年{month}月{day}日"
+
+    # 有効期限: 交付日から3〜5年後（西暦表示）
+    issue_western = _era_to_western(issue_era, issue_year)
+    validity_years = random.choice([3, 4, 5])
+    expiry_western = issue_western + validity_years
+    expiry_str = f"{expiry_western}年{month}月{day}日"
+
+    return issue_str, expiry_str
+
+
 def _random_name() -> str:
     """ダミーリストから氏名を生成する。
 
@@ -492,6 +565,19 @@ def _apply_distortions(
         cv2.circle(overlay, (center_x, center_y), radius, (50, 50, 50), -1)
         cv2.addWeighted(overlay, 0.2, image, 0.8, 0, image)
 
+    # 透視変形（手撮りカードの歪み再現）
+    if enable_perspective and random.random() < 0.3:
+        offset = random.randint(10, 40)
+        src_pts = np.float32([[0, 0], [w, 0], [w, h], [0, h]])
+        dst_pts = np.float32([
+            [random.randint(0, offset), random.randint(0, offset)],
+            [w - random.randint(0, offset), random.randint(0, offset)],
+            [w - random.randint(0, offset), h - random.randint(0, offset)],
+            [random.randint(0, offset), h - random.randint(0, offset)],
+        ])
+        matrix = cv2.getPerspectiveTransform(src_pts, dst_pts)
+        image = cv2.warpPerspective(image, matrix, (w, h), borderMode=cv2.BORDER_REPLICATE)
+
     return image
 
 
@@ -581,12 +667,10 @@ def generate_one(
         else:
             address = random.choice(_DUMMY_ADDRESSES)
 
-    birth_era = random.choice(_ERAS)
-    birth_date = _random_era_date(birth_era) + "生"
-    issue_era = random.choice(_ERAS)
-    issue_date = _random_era_date(issue_era)
-    expiry_era = random.choice(_ERAS)
-    expiry_date = _random_era_date(expiry_era)
+    # 日付生成（論理的整合性を保つ）
+    birth_era_str, _ = _random_birth_date()
+    birth_date = birth_era_str + "生"
+    issue_date, expiry_date = _random_issue_and_expiry()
     license_number = _random_license_number()
     license_type = random.choice(_LICENSE_TYPES)
     condition = random.choice(_CONDITIONS)
@@ -597,11 +681,11 @@ def generate_one(
         ("氏名", name, "name"),
         ("生年月日", birth_date, "birth_date"),
         ("住所", address, "address"),
-        ("交付", issue_date, "issue_date"),
+        ("交付年月日", issue_date, "issue_date"),
         ("有効期限", expiry_date, "expiry_date"),
-        ("条件等", condition, "conditions"),
+        ("免許の条件", condition, "conditions"),
         ("免許証番号", license_number, "license_number"),
-        ("免許種類", license_type, "license_type"),
+        ("免許の種類", license_type, "license_type"),
     ]:
         draw.text((60, y), label, fill=(0, 0, 0), font=font)
         bbox = draw.textbbox((60, y), label, font=font)
