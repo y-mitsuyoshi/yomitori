@@ -15,6 +15,7 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from src.utils.logger import get_logger
@@ -197,7 +198,10 @@ async def invocations(request: Request) -> dict:
     )
 
     result = engine.process(image)
-    return result
+    return Response(
+        content=json.dumps(result, ensure_ascii=False, indent=2),
+        media_type="application/json; charset=utf-8",
+    )
 
 
 @app.post("/batch-invocations")
@@ -269,7 +273,10 @@ async def batch_invocations(request: Request) -> dict:
         )
         results.append(engine.process(image))
 
-    return {"results": results}
+    return Response(
+        content=json.dumps({"results": results}, ensure_ascii=False, indent=2),
+        media_type="application/json; charset=utf-8",
+    )
 
 
 def main() -> None:
