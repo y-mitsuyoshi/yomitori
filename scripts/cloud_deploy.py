@@ -42,7 +42,7 @@ def main() -> None:
     model = PyTorchModel(
         model_data=args.model_data,
         role=role,
-        entry_point="sagemaker/inference_entry_point.py",
+        entry_point="sagemaker_serve/inference_entry_point.py",
         source_dir=str(project_root),
         image_uri=args.ecr_image,
     )

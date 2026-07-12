@@ -854,7 +854,7 @@ yomitori/
 │   ├── train_trocr.py               # TrOCRファインチューニング
 │   └── dataset.py                    # PyTorch Dataset
 │
-├── sagemaker/
+├── sagemaker_serve/
 │   ├── serve.py                     # FastAPI 推論サーバー
 │   └── inference_entry_point.py     # SageMaker推論エントリポイント
 │

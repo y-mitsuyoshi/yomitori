@@ -6,4 +6,4 @@ COPY . /opt/ml/code/
 
 EXPOSE 8080
 
-CMD ["python", "-m", "sagemaker.serve"]
+CMD ["python", "-m", "sagemaker_serve.serve"]

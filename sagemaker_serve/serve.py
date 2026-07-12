@@ -275,7 +275,7 @@ async def batch_invocations(request: Request) -> dict:
 def main() -> None:
     """Start the inference server."""
     uvicorn.run(
-        "sagemaker.serve:app",
+        "sagemaker_serve.serve:app",
         host="0.0.0.0",
         port=int(os.environ.get("YOMITORI_PORT", "8080")),
         log_level="info",

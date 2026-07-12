@@ -158,19 +158,22 @@ sudo ln -sf /mnt/wsl/docker-desktop/shared-sockets/guest-services/docker.proxy.s
 sudo chmod 666 /var/run/docker.sock
 ```
 
-#### 4-3: SageMaker Local Mode でエンドポイントをデプロイ + 推論
+#### 4-3: 推論テスト（ホスト側から実行）
+
+学習済みモデルを使って推論テストを行います。
+**ホスト側（WSLターミナル）から直接実行してください**（Dockerコンテナ内からではありません）:
 
 ```bash
-# サンプル画像で推論テスト
-docker compose run --rm -v /var/run/docker.sock:/var/run/docker.sock dev \
-    python -m scripts.local_deploy --sample data/samples/sample_license.jpg
+# サンプル画像で推論テスト（docker compose up serve + HTTPリクエストを自動実行）
+python3 -m scripts.local_deploy --sample data/samples/sample_license.jpg
 ```
 
 **実行の流れ:**
-1. `model.tar.gz` を読み込み
-2. `yomitori:infer` イメージでローカルエンドポイントを構築
-3. サンプル画像をエンドポイントに送信
-4. 推論結果をJSONで標準出力に表示
+1. `docker compose up -d serve` で推論サーバーを起動
+2. サーバーの起動を待機（`/ping` エンドポイントで確認）
+3. サンプル画像をHTTP POSTで送信
+4. 推論結果をJSONで表示
+5. `docker compose down` でサーバーを停止
 
 **出力例:**
 ```json
@@ -202,18 +205,16 @@ docker compose run --rm -v /var/run/docker.sock:/var/run/docker.sock dev \
 
 ```bash
 # 別のサンプル画像で推論
-docker compose run --rm -v /var/run/docker.sock:/var/run/docker.sock dev \
-    python -m scripts.local_deploy --sample data/samples/sample_license2.jpg
+python3 -m scripts.local_deploy --sample data/samples/sample_license2.jpg
 ```
 
 #### 4-5: クリーンアップ
 
-SageMaker Local Mode はバックグラウンドでDockerコンテナを作成します。
-テスト終了後にクリーンアップしてください:
+`local_deploy` スクリプトは終了時に自動的に `docker compose down` を実行します。
+手動で停止が必要な場合:
 
 ```bash
-# ローカルエンドポイントのコンテナを削除
-docker ps -a --filter "name=sagemaker" --format "{{.ID}}" | xargs -r docker rm -f
+docker compose down
 
 # model.tar.gz を削除（不要な場合）
 rm -f model.tar.gz
