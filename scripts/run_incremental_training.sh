@@ -42,12 +42,12 @@ echo "エポック数: ${EPOCHS}, 学習率: ${LEARNING_RATE}"
 echo "起点のベースモデル: ${CURRENT_MODEL}"
 echo "======================================"
 
-# 1. 固定 of 評価用データセットがなければ作成 (1000枚)
+# 1. 固定 of 評価用データセットがなければ作成 (100枚のカード = 1,000行画像)
 if [ ! -d "${EVAL_DIR}" ] || [ ! -f "${EVAL_DIR}/labels.json" ]; then
     echo "[INFO] 評価用データセット（${EVAL_DIR}）が見つからないため、新規生成します..."
     mkdir -p "${EVAL_DIR}"
     docker compose run --rm dev python -m training.generate_synthetic_data \
-        --count 1000 \
+        --count 100 \
         --output "/opt/ml/code/${EVAL_DIR}" \
         --seed 9999
     echo "[INFO] 評価用データセットの生成完了。"
