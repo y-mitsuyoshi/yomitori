@@ -52,16 +52,18 @@ def build_multilingual_processor(base_model: str, decoder_tokenizer: str):
 def build_multilingual_model(base_model: str, decoder_tokenizer: str):
     """VisionEncoderDecoderModelを構築する。
 
-    ベースモデルのエンコーダ（画像理解）はそのまま使い、
-    デコーダ（テキスト生成）の語彙を指定したトークナイザーに合わせてリサイズする。
+    ベースモデルがローカルパス（継続学習）の場合は、保存済みのトークナイザーを
+    そのまま使用し、語彙リサイズをスキップする。
+    HuggingFaceモデル名の場合は、デコーダの語彙を指定したトークナイザーに合わせてリサイズする。
 
     Args:
-        base_model: TrOCRベースモデル名。
+        base_model: TrOCRベースモデル名またはローカルパス。
         decoder_tokenizer: デコーダトークナイザー名。
 
     Returns:
         (model, processor) のタプル。
     """
+    from pathlib import Path
     from transformers import (
         AutoTokenizer,
         TrOCRProcessor,
@@ -70,33 +72,44 @@ def build_multilingual_model(base_model: str, decoder_tokenizer: str):
 
     model = VisionEncoderDecoderModel.from_pretrained(base_model)
     processor = TrOCRProcessor.from_pretrained(base_model)
-    tokenizer = AutoTokenizer.from_pretrained(decoder_tokenizer)
 
-    # BERT tokenizer lacks bos/eos tokens, map them to cls/sep tokens
-    if tokenizer.bos_token is None:
-        tokenizer.bos_token = tokenizer.cls_token
-        tokenizer.bos_token_id = tokenizer.cls_token_id
-    if tokenizer.eos_token is None:
-        tokenizer.eos_token = tokenizer.sep_token
-        tokenizer.eos_token_id = tokenizer.sep_token_id
+    # 継続学習かどうかを判定（ベースモデルがローカルディレクトリの場合）
+    is_continuation = Path(base_model).exists() and (Path(base_model) / "tokenizer.json").exists()
 
-    processor.tokenizer = tokenizer
+    if is_continuation:
+        # 継続学習: 保存済みのトークナイザーをそのまま使用（語彙リサイズ不要）
+        logger.info("  Continuing from local model — using saved tokenizer (no vocab resize)")
+        tokenizer = AutoTokenizer.from_pretrained(base_model)
+        processor.tokenizer = tokenizer
+    else:
+        # 初回学習: 新しいトークナイザーに差し替え + 語彙リサイズ
+        tokenizer = AutoTokenizer.from_pretrained(decoder_tokenizer)
 
-    # デコーダの語彙をトークナイザーに合わせてリサイズ
-    model.config.decoder.vocab_size = len(tokenizer)
-    model.decoder.resize_token_embeddings(len(tokenizer))
+        # BERT tokenizer lacks bos/eos tokens, map them to cls/sep tokens
+        if tokenizer.bos_token is None:
+            tokenizer.bos_token = tokenizer.cls_token
+            tokenizer.bos_token_id = tokenizer.cls_token_id
+        if tokenizer.eos_token is None:
+            tokenizer.eos_token = tokenizer.sep_token
+            tokenizer.eos_token_id = tokenizer.sep_token_id
 
-    # 生成用の設定を更新
-    model.config.pad_token_id = tokenizer.pad_token_id
-    model.config.decoder_start_token_id = tokenizer.bos_token_id
-    model.config.eos_token_id = tokenizer.eos_token_id
-    model.config.vocab_size = len(tokenizer)
+        processor.tokenizer = tokenizer
 
-    # generation_config も明示的に更新する
-    if model.generation_config is not None:
-        model.generation_config.pad_token_id = tokenizer.pad_token_id
-        model.generation_config.decoder_start_token_id = tokenizer.bos_token_id
-        model.generation_config.eos_token_id = tokenizer.eos_token_id
+        # デコーダの語彙をトークナイザーに合わせてリサイズ
+        model.config.decoder.vocab_size = len(tokenizer)
+        model.decoder.resize_token_embeddings(len(tokenizer))
+
+        # 生成用の設定を更新
+        model.config.pad_token_id = tokenizer.pad_token_id
+        model.config.decoder_start_token_id = tokenizer.bos_token_id
+        model.config.eos_token_id = tokenizer.eos_token_id
+        model.config.vocab_size = len(tokenizer)
+
+        # generation_config も明示的に更新する
+        if model.generation_config is not None:
+            model.generation_config.pad_token_id = tokenizer.pad_token_id
+            model.generation_config.decoder_start_token_id = tokenizer.bos_token_id
+            model.generation_config.eos_token_id = tokenizer.eos_token_id
 
     return model, processor
 
@@ -152,7 +165,10 @@ def main() -> int:
     )
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--epochs", type=int, default=5)
-    parser.add_argument("--learning_rate", type=float, default=5e-5)
+    parser.add_argument(
+        "--learning_rate", type=float, default=None,
+        help="Learning rate. Auto: 5e-5 for initial training, 1e-5 for continuation.",
+    )
     parser.add_argument("--warmup_ratio", type=float, default=0.1)
     parser.add_argument("--gradient_accumulation_steps", type=int, default=1)
     parser.add_argument("--fp16", action=argparse.BooleanOptionalAction, default=True)
@@ -163,6 +179,13 @@ def main() -> int:
     parser.add_argument("--eval_split", type=float, default=0.1, help="Fraction of training data to use for evaluation (0=off)")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
+
+    # 学習率の自動設定（継続学習の場合は低くする）
+    from pathlib import Path
+    is_continuation = Path(args.base_model).exists() and (Path(args.base_model) / "tokenizer.json").exists()
+    if args.learning_rate is None:
+        args.learning_rate = 1e-5 if is_continuation else 5e-5
+        logger.info("  Auto learning_rate: %s (continuation=%s)", args.learning_rate, is_continuation)
 
     torch.manual_seed(args.seed)
 
