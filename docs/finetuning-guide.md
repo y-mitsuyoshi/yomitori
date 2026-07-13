@@ -228,7 +228,7 @@ docker compose up -d serve
 curl -s http://localhost:8080/ping
 curl -s -X POST http://localhost:8080/invocations \
     -H "Content-Type: image/jpeg" \
-    --data-binary @data/samples/sample_license.jpg | python3 -m json.tool
+    --data-binary @data/samples/sample_license.jpg | python3 -c "import sys, json; print(json.dumps(json.load(sys.stdin), ensure_ascii=False, indent=2))"
 docker compose down
 ```
 
@@ -271,7 +271,7 @@ docker compose run --rm -p 8080:8080 -e YOMITORI_MODEL_DIR=/opt/ml/model/v2 serv
 # 推論テスト
 curl -s -X POST http://localhost:8080/invocations \
     -H "Content-Type: image/jpeg" \
-    --data-binary @data/samples/sample_license.jpg | python3 -m json.tool
+    --data-binary @data/samples/sample_license.jpg | python3 -c "import sys, json; print(json.dumps(json.load(sys.stdin), ensure_ascii=False, indent=2))"
 
 # サーバー停止（Ctrl+C）
 ```
@@ -443,12 +443,12 @@ curl -s http://localhost:8080/ping
 # サンプル画像で推論
 curl -s -X POST http://localhost:8080/invocations \
     -H "Content-Type: image/jpeg" \
-    --data-binary @data/samples/sample_license.jpg | python3 -m json.tool
+    --data-binary @data/samples/sample_license.jpg | python3 -c "import sys, json; print(json.dumps(json.load(sys.stdin), ensure_ascii=False, indent=2))"
 
 # 別のサンプル画像で推論
 curl -s -X POST http://localhost:8080/invocations \
     -H "Content-Type: image/jpeg" \
-    --data-binary @data/samples/sample_license2.jpg | python3 -m json.tool
+    --data-binary @data/samples/sample_license2.jpg | python3 -c "import sys, json; print(json.dumps(json.load(sys.stdin), ensure_ascii=False, indent=2))"
 ```
 
 ### 推論結果の確認ポイント

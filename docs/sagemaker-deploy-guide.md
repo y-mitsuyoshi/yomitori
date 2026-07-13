@@ -298,7 +298,7 @@ ENDPOINT_URL="https://runtime.sagemaker.${AWS_REGION}.amazonaws.com/endpoints/${
 # 画像を送信して推論
 curl -s -X POST ${ENDPOINT_URL} \
     -H "Content-Type: image/jpeg" \
-    --data-binary @data/samples/sample_license.jpg | python3 -m json.tool
+    --data-binary @data/samples/sample_license.jpg | python3 -c "import sys, json; print(json.dumps(json.load(sys.stdin), ensure_ascii=False, indent=2))"
 ```
 
 > **注意**: curlで直接アクセスする場合はAWS SigV4署名が必要です。 SageMaker SDK（Python）の使用を推奨します。

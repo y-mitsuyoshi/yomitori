@@ -111,13 +111,13 @@ PyTorchやNumPyが安全に扱える32ビット符号付き整数の上限であ
   ```bash
   curl -s -X POST http://localhost:8080/invocations \
       -H "Content-Type: image/jpeg" \
-      --data-binary @data/samples/sample_license.jpg | python3 -m json.tool
+      --data-binary @data/samples/sample_license.jpg | python3 -c "import sys, json; print(json.dumps(json.load(sys.stdin), ensure_ascii=False, indent=2))"
   ```
 * **サンプル画像2でテスト（表面別パターン）**:
   ```bash
   curl -s -X POST http://localhost:8080/invocations \
       -H "Content-Type: image/jpeg" \
-      --data-binary @data/samples/sample_license2.jpg | python3 -m json.tool
+      --data-binary @data/samples/sample_license2.jpg | python3 -c "import sys, json; print(json.dumps(json.load(sys.stdin), ensure_ascii=False, indent=2))"
   ```
 
 ### 手順 3: サーバーの停止
