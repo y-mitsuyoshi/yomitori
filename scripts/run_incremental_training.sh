@@ -11,8 +11,8 @@ set -euo pipefail
 
 # --- 設定パラメータ ---
 ITERATIONS=1                   # 繰り返す回数（1回実行につき1つのマイナーバージョンを上げる）
-COUNT_REGULAR=16000            # 通常データ数 (合計20,000枚目標)
-COUNT_KANJI=4000               # 漢字ブーストデータ数
+COUNT_REGULAR=1600             # 通常ドキュメント数（1600枚生成 * 10行 = 16,000行画像）
+COUNT_KANJI=400                # 漢字ブーストドキュメント数（400枚生成 * 10行 = 4,000行画像）
 EPOCHS=3                       # 学習エポック数
 BATCH_SIZE=4                   # バッチサイズ
 LEARNING_RATE="2e-5"           # 継続学習用に少し低めに設定
@@ -37,7 +37,7 @@ EVAL_DIR="data/synthetic/eval_set"
 
 echo "=== 段階的追加学習自動化スクリプト ==="
 echo "総イテレーション数: ${ITERATIONS}"
-echo "各ステップ通常データ: ${COUNT_REGULAR}枚, 漢字ブースト: ${COUNT_KANJI}枚"
+echo "各ステップ通常カード数: ${COUNT_REGULAR}枚 (約 $((COUNT_REGULAR * 10))行画像), 漢字ブースト: ${COUNT_KANJI}枚 (約 $((COUNT_KANJI * 10))行画像)"
 echo "エポック数: ${EPOCHS}, 学習率: ${LEARNING_RATE}"
 echo "起点のベースモデル: ${CURRENT_MODEL}"
 echo "======================================"
