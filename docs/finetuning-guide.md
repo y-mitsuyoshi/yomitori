@@ -5,10 +5,10 @@
 ## 目次
 
 - [前提条件](#前提条件)
-- [v1: 動作確認（約35分）](#v1-動作確認約35分)
-- [v2: 商用基礎精度（約4時間）](#v2-商用基礎精度約4時間)
-- [v3: 実用精度（約11時間）](#v3-実用精度約11時間)
-- [v4: 最高精度（約19時間）](#v4-最高精度約19時間)
+- [v1: 動作確認（約1時間）](#v1-動作確認約35分)
+- [v2: 商用基礎精度（約7時間）](#v2-商用基礎精度約4時間)
+- [v3: 実用精度（約20時間）](#v3-実用精度約11時間)
+- [v4: 最高精度（約33時間）](#v4-最高精度約19時間)
 - [継続学習（v1→v2→v3）](#継続学習v1v2v3)
 - [推論サーバーでの検証](#推論サーバーでの検証)
 - [トラブルシューティング](#トラブルシューティング)
@@ -234,7 +234,7 @@ docker compose down
 
 ---
 
-## v2: 商用基礎精度（約4時間）
+## v2: 商用基礎精度（約7〜8時間）
 
 **目的**: 商用レベルの基礎精度を達成する。
 
@@ -249,7 +249,7 @@ docker compose run --rm dev python -m training.generate_synthetic_data \
 
 > **注意**: v1とは別のディレクトリ（`driver_license_v2/`）に出力し、v1のデータを上書きしないようにします。
 
-### 手順 2: ファインチューニングを実行（5エポック・約3.5時間）
+### 手順 2: ファインチューニングを実行（5エポック・約6〜7時間）
 
 ```bash
 docker compose run --rm train python -m training.train_trocr \
@@ -278,7 +278,7 @@ curl -s -X POST http://localhost:8080/invocations \
 
 ---
 
-## v3: 実用精度（約11時間）
+## v3: 実用精度（約20時間）
 
 **目的**: 商用デプロイ可能な精度を達成する。
 
@@ -330,7 +330,7 @@ print(f'Combined: {len(main_labels)} line crops')
 "
 ```
 
-### 手順 3: ファインチューニング（5エポック・約10.5時間）
+### 手順 3: ファインチューニング（5エポック・約18時間）
 
 ```bash
 docker compose run --rm train python -m training.train_trocr \
@@ -346,7 +346,7 @@ docker compose run --rm train python -m training.train_trocr \
 
 ---
 
-## v4: 最高精度（約19時間）
+## v4: 最高精度（約33時間）
 
 **目的**: 最高精度のモデルを構築する。
 
@@ -371,7 +371,7 @@ docker compose run --rm dev python -m training.generate_synthetic_data \
 
 v3と同様の手順でlabels.jsonとimages/を結合します。
 
-### 手順 3: ファインチューニング（5エポック・約18.5時間）
+### 手順 3: ファインチューニング（5エポック・約30時間）
 
 ```bash
 docker compose run --rm train python -m training.train_trocr \
@@ -383,7 +383,7 @@ docker compose run --rm train python -m training.train_trocr \
     --fp16
 ```
 
-> **注意**: 約19時間かかります。学習中にPCをスリープしないよう設定してください。また、途中で停止した場合はチェックポイントから再開できます。
+> **注意**: 約33時間かかります。学習中にPCをスリープしないよう設定してください。また、途中で停止した場合はチェックポイントから再開できます。
 
 ---
 
@@ -563,7 +563,8 @@ sudo systemctl restart docker
 | Label Smoothing | 0.1 | 0.1 | 0.1 | 0.1 |
 | Weight Decay | 0.01 | 0.01 | 0.01 | 0.01 |
 | 学習率 | 5e-5 | 5e-5 | 5e-5 | 5e-5 |
-| **想定時間** | **約40分** | **約5時間** | **約14時間** | **約24時間** |
+| **想定時間** | **約1時間** | **約7時間** | **約20時間** | **約33時間** |
+
 
 ### 各バージョンの目標CER
 

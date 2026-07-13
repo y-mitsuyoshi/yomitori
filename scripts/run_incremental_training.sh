@@ -10,10 +10,10 @@
 set -euo pipefail
 
 # --- 設定パラメータ ---
-ITERATIONS=4                   # 繰り返す回数（例：v2からv5までを4回に分ける）
-COUNT_REGULAR=20000            # イテレーションごとの通常データ数
-COUNT_KANJI=10000              # イテレーションごとの漢字ブーストデータ数
-EPOCHS=3                       # 各イテレーションの学習エポック数
+ITERATIONS=1                   # 繰り返す回数（1回実行につき1つのマイナーバージョンを上げる）
+COUNT_REGULAR=16000            # 通常データ数 (合計20,000枚目標)
+COUNT_KANJI=4000               # 漢字ブーストデータ数
+EPOCHS=3                       # 学習エポック数
 BATCH_SIZE=4                   # バッチサイズ
 LEARNING_RATE="2e-5"           # 継続学習用に少し低めに設定
 START_SEED=1000                # 初期シード値（次回は2000、その次は3000のように変えます）
@@ -24,7 +24,7 @@ CURRENT_MODEL="/opt/ml/model/v2"
 
 # 新しく出力するモデルのバージョン接頭辞 (例: "2" と指定すると、v2.x と命名されます)
 VERSION_PREFIX="2"
-# 出力の開始インデックス (v2.1 から始める場合は 1, v2.5 から始める場合は 5)
+# 出力のインデックス (v2.1 を出力する場合は 1, v2.2 を出力する場合は 2)
 START_STEP_INDEX=1
 
 # フォルダパス定義（ホスト側相対パス）
@@ -42,12 +42,12 @@ echo "エポック数: ${EPOCHS}, 学習率: ${LEARNING_RATE}"
 echo "起点のベースモデル: ${CURRENT_MODEL}"
 echo "======================================"
 
-# 1. 固定の評価用データセットがなければ作成 (5,000枚)
+# 1. 固定 of 評価用データセットがなければ作成 (1000枚)
 if [ ! -d "${EVAL_DIR}" ] || [ ! -f "${EVAL_DIR}/labels.json" ]; then
     echo "[INFO] 評価用データセット（${EVAL_DIR}）が見つからないため、新規生成します..."
     mkdir -p "${EVAL_DIR}"
     docker compose run --rm dev python -m training.generate_synthetic_data \
-        --count 5000 \
+        --count 1000 \
         --output "/opt/ml/code/${EVAL_DIR}" \
         --seed 9999
     echo "[INFO] 評価用データセットの生成完了。"

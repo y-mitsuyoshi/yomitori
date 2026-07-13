@@ -7,7 +7,7 @@
 ## 🏛️ 全体フローの概要
 
 1. **データ一時保存による容量節約**: 
-   学習用データは1回あたり **3万枚（約66GB）** だけ生成し、学習が完了した瞬間に自動的に画像を全削除して空き容量を戻します。
+   学習用データは1回あたり **20,000枚（約44GB）** だけ生成し、学習が完了した瞬間に自動的に画像を全削除して空き容量を戻します。
 2. **モデル重みの引き継ぎ（継続学習）**:
    前回のステップの学習済みモデル（例: `v2.1`）を読み込んで次の学習を開始するため、短時間で効率よく精度が上昇します。
 3. **モデルの命名規則**:
@@ -17,7 +17,7 @@
 
 ## 🏃‍♂️ 段階的追加学習の実行手順
 
-### 1回目：v2 モデルからスタートし、v2.4 へ上げる (合計12万枚分)
+### 1回目：v2 モデルからスタートし、v2.1 へ上げる (合計2万枚分)
 
 1. **スクリプトの実行権限を確認** (初回のみ):
    ```bash
@@ -35,27 +35,47 @@
    ```bash
    ./scripts/run_incremental_training.sh
    ```
-   * **所要時間**: 約 6 〜 8 時間
-   * **最終出力**: `/opt/ml/model/v2.4` （Dockerボリューム内に保存）
+   * **所要時間**: 約 1.2 時間（ローカルPC） / 約 30 分（SageMaker）
+   * **最終出力**: `/opt/ml/model/v2.1` （Dockerボリューム内に保存）
 
 ---
 
-### 2回目：v2.4 からスタートし、v2.8 へ上げる (さらに12万枚分)
+### 2回目：v2.1 からスタートし、v2.2 へ上げる (さらに2万枚分)
 
 1. **スクリプトのパラメータ書き換え**:
    [scripts/run_incremental_training.sh](file:///home/yuma/projects/yomitori/scripts/run_incremental_training.sh) の上部設定を次のように変更します。
    ```bash
    START_SEED=2000                      # ★シードを変更（重複防止）
-   CURRENT_MODEL="/opt/ml/model/v2.4"   # ★起点に前回の成果物v2.4を指定
+   CURRENT_MODEL="/opt/ml/model/v2.1"   # ★起点に前回の成果物v2.1を指定
    VERSION_PREFIX="2"                   # 接頭辞はそのまま (v2.x)
-   START_STEP_INDEX=5                   # ★保存はv2.5からスタート
+   START_STEP_INDEX=2                   # ★出力のインデックスを2に変更
    ```
 2. **学習の実行**:
    ```bash
    ./scripts/run_incremental_training.sh
    ```
-   * **所要時間**: 約 6 〜 8 時間
-   * **最終出力**: `/opt/ml/model/v2.8`
+   * **所要時間**: 約 1.2 時間（ローカルPC） / 約 30 分（SageMaker）
+   * **最終出力**: `/opt/ml/model/v2.2`
+
+---
+
+## 🌱 シード値（START_SEED）のルールと上限
+
+データの重複を防ぐためのシード値（`START_SEED`）の指定ルールとシステム上の上限です。
+
+### 1. シード値の上限
+PyTorchやNumPyが安全に扱える32ビット符号付き整数の上限である **`2,147,483,647`**（約21億）まで指定可能です。実用上、上限に達する心配はありません。
+
+### 2. 覚えやすい推奨ルール
+シード値の指定で迷わないよう、ステップのインデックス（`START_STEP_INDEX`）と連動させる以下のルールを推奨します。
+
+* **`START_SEED` ＝ `START_STEP_INDEX` × `1000`**
+
+* **v2.1（ステップ1）**: `START_SEED=1000`
+* **v2.2（ステップ2）**: `START_SEED=2000`
+* **v2.3（ステップ3）**: `START_SEED=3000`
+* ...
+* **v2.10（ステップ10）**: `START_SEED=10000`
 
 ---
 
@@ -74,9 +94,9 @@
   ```bash
   docker compose run --rm -p 8080:8080 -e YOMITORI_MODEL_DIR=/opt/ml/model/v2.1 serve
   ```
-* **v2.4 モデルをテストする場合**:
+* **v2.2 モデルをテストする場合**:
   ```bash
-  docker compose run --rm -p 8080:8080 -e YOMITORI_MODEL_DIR=/opt/ml/model/v2.4 serve
+  docker compose run --rm -p 8080:8080 -e YOMITORI_MODEL_DIR=/opt/ml/model/v2.2 serve
   ```
 
 ※このコマンドを実行すると、ターミナルがサーバー起動状態でロック（待機）されます。
