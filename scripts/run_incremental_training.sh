@@ -15,17 +15,17 @@ COUNT_REGULAR=1600             # 通常ドキュメント数（1600枚生成 * 1
 COUNT_KANJI=400                # 漢字ブーストドキュメント数（400枚生成 * 10行 = 4,000行画像）
 EPOCHS=3                       # 学習エポック数
 BATCH_SIZE=4                   # バッチサイズ
-LEARNING_RATE="2e-5"           # 継続学習用に少し低めに設定
-START_SEED=1000                # 初期シード値（次回は2000、その次は3000のように変えます）
+LEARNING_RATE="4e-5"           # 継続学習用に少し低めに設定
+START_SEED=2000                # 初期シード値（次回は2000、その次は3000のように変えます）
 
 # 【バージョン設定】
 # 起点とする初期モデル（例: /opt/ml/model/v2）
-CURRENT_MODEL="/opt/ml/model/v2"
+CURRENT_MODEL="/opt/ml/model/v2.1"
 
 # 新しく出力するモデルのバージョン接頭辞 (例: "2" と指定すると、v2.x と命名されます)
 VERSION_PREFIX="2"
 # 出力のインデックス (v2.1 を出力する場合は 1, v2.2 を出力する場合は 2)
-START_STEP_INDEX=1
+START_STEP_INDEX=2
 
 # フォルダパス定義（ホスト側相対パス）
 TEMP_DIR="data/synthetic/temp_train"
@@ -126,6 +126,7 @@ print(f'Marge complete. Total lines: {len(main_labels)}')
         --epochs "${EPOCHS}" \
         --batch_size "${BATCH_SIZE}" \
         --learning_rate "${LEARNING_RATE}" \
+        --gradient_accumulation_steps 4 \
         --fp16
 
     # E. 学習データの削除（空き容量確保）
