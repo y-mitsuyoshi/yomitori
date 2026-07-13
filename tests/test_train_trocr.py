@@ -99,3 +99,58 @@ def test_build_multilingual_model_bert_japanese():
         assert mock_model_inst.generation_config.pad_token_id == 0
         assert mock_model_inst.generation_config.decoder_start_token_id == 2
         assert mock_model_inst.generation_config.eos_token_id == 3
+
+
+def test_build_multilingual_model_continuation(tmp_path):
+    """build_multilingual_model should skip vocab resize for continuation training.
+
+    When base_model is a local directory containing training_info.json,
+    the function should use the saved tokenizer and NOT call resize_token_embeddings.
+    """
+    import json
+
+    # Create a fake local model directory with training_info.json
+    model_dir = tmp_path / "v2.1"
+    model_dir.mkdir()
+    (model_dir / "training_info.json").write_text(json.dumps({
+        "base_model": "/opt/ml/model/v2",
+        "decoder_tokenizer": "cl-tohoku/bert-base-japanese-v3",
+    }))
+
+    with patch("transformers.VisionEncoderDecoderModel.from_pretrained") as mock_model, \
+         patch("transformers.TrOCRProcessor.from_pretrained") as mock_proc, \
+         patch("transformers.AutoTokenizer.from_pretrained") as mock_tok:
+
+        # Mock tokenizer (already has bos/eos from previous training)
+        mock_tokenizer = MagicMock()
+        mock_tokenizer.bos_token = "[CLS]"
+        mock_tokenizer.bos_token_id = 2
+        mock_tokenizer.eos_token = "[SEP]"
+        mock_tokenizer.eos_token_id = 3
+        mock_tokenizer.pad_token_id = 0
+        mock_tokenizer.__len__.return_value = 32768
+        mock_tok.return_value = mock_tokenizer
+
+        mock_model_inst = MagicMock()
+        mock_model_inst.config = MagicMock()
+        mock_model_inst.config.decoder = MagicMock()
+        mock_model_inst.generation_config = MagicMock()
+        mock_model.return_value = mock_model_inst
+
+        mock_processor_inst = MagicMock()
+        mock_proc.return_value = mock_processor_inst
+
+        model, processor = build_multilingual_model(
+            base_model=str(model_dir),
+            decoder_tokenizer="cl-tohoku/bert-base-japanese-v3",
+        )
+
+        assert model == mock_model_inst
+        assert processor == mock_processor_inst
+
+        # Key assertion: resize_token_embeddings should NOT be called
+        mock_model_inst.decoder.resize_token_embeddings.assert_not_called()
+
+        # Tokenizer should be loaded from the local model dir, not the decoder_tokenizer arg
+        mock_tok.assert_called_with(str(model_dir))
+        assert processor.tokenizer == mock_tokenizer

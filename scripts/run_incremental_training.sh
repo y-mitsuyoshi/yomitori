@@ -6,25 +6,30 @@
 # 各イテレーションごとに合成データを生成し、学習が完了したら自動的に
 # ディスクから合成データを削除して空き容量を維持します。
 #
+# 使い方:
+#   ./scripts/run_incremental_training.sh
+#
+# 初回実行前に:
+#   chmod +x scripts/run_incremental_training.sh
+#
 
 set -euo pipefail
 
 # --- 設定パラメータ ---
-ITERATIONS=7                   # 繰り返す回数（1回実行につき1つのマイナーバージョンを上げる）
+ITERATIONS=5                   # 繰り返す回数（1回実行につき1つのマイナーバージョンを上げる）
 COUNT_REGULAR=1600             # 通常ドキュメント数（1600枚生成 * 10行 = 16,000行画像）
 COUNT_KANJI=400                # 漢字ブーストドキュメント数（400枚生成 * 10行 = 4,000行画像）
 EPOCHS=3                       # 学習エポック数
 BATCH_SIZE=4                   # バッチサイズ
-LEARNING_RATE="4e-5"           # 継続学習用に少し低めに設定
-START_SEED=2000                # 初期シード値（次回は2000、その次は3000のように変えます）
+START_SEED=2000                # 初期シード値（次回は3000、その次は4000のように変えます）
 
 # 【バージョン設定】
-# 起点とする初期モデル（例: /opt/ml/model/v2）
+# 起点とする初期モデル（例: /opt/ml/model/v2.1）
 CURRENT_MODEL="/opt/ml/model/v2.1"
 
 # 新しく出力するモデルのバージョン接頭辞 (例: "2" と指定すると、v2.x と命名されます)
 VERSION_PREFIX="2"
-# 出力のインデックス (v2.1 を出力する場合は 1, v2.2 を出力する場合は 2)
+# 出力のインデックス (v2.2 を出力する場合は 2, v2.3 を出力する場合は 3)
 START_STEP_INDEX=2
 
 # フォルダパス定義（ホスト側相対パス）
@@ -38,11 +43,11 @@ EVAL_DIR="data/synthetic/eval_set"
 echo "=== 段階的追加学習自動化スクリプト ==="
 echo "総イテレーション数: ${ITERATIONS}"
 echo "各ステップ通常カード数: ${COUNT_REGULAR}枚 (約 $((COUNT_REGULAR * 10))行画像), 漢字ブースト: ${COUNT_KANJI}枚 (約 $((COUNT_KANJI * 10))行画像)"
-echo "エポック数: ${EPOCHS}, 学習率: ${LEARNING_RATE}"
+echo "エポック数: ${EPOCHS}, 学習率: 自動（継続学習: 1e-5）"
 echo "起点のベースモデル: ${CURRENT_MODEL}"
 echo "======================================"
 
-# 1. 固定 of 評価用データセットがなければ作成 (100枚のカード = 1,000行画像)
+# 1. 固定の評価用データセットがなければ作成 (100枚のカード = 1,000行画像)
 if [ ! -d "${EVAL_DIR}" ] || [ ! -f "${EVAL_DIR}/labels.json" ]; then
     echo "[INFO] 評価用データセット（${EVAL_DIR}）が見つからないため、新規生成します..."
     mkdir -p "${EVAL_DIR}"
@@ -112,10 +117,12 @@ for k, v in kanji_labels.items():
 with open(base / 'labels.json', 'w') as f:
     json.dump(main_labels, f, ensure_ascii=False, indent=2)
 
-print(f'Marge complete. Total lines: {len(main_labels)}')
+print(f'Merge complete. Total lines: {len(main_labels)}')
 "
 
     # D. トレーニングの実行
+    #    --learning_rate を省略すると、train_trocr.py が自動で設定する
+    #    （継続学習: 1e-5, 初回学習: 5e-5）
     echo "[Step 4/4] トレーニングを実行中..."
     docker compose run --rm train python -m training.train_trocr \
         --data_dir "/opt/ml/code/${TEMP_DIR}" \
@@ -125,8 +132,6 @@ print(f'Marge complete. Total lines: {len(main_labels)}')
         --decoder_tokenizer cl-tohoku/bert-base-japanese-v3 \
         --epochs "${EPOCHS}" \
         --batch_size "${BATCH_SIZE}" \
-        --learning_rate "${LEARNING_RATE}" \
-        --gradient_accumulation_steps 4 \
         --fp16
 
     # E. 学習データの削除（空き容量確保）
@@ -135,6 +140,16 @@ print(f'Marge complete. Total lines: {len(main_labels)}')
     # 新しいモデルフォルダ内の不要なチェックポイント（一時保存用）も削除してDocker容量を節約
     docker compose run --rm dev bash -c "rm -rf ${NEXT_MODEL}/checkpoint-*"
     echo "[INFO] ディスク容量解放完了。"
+
+    # F. 1つ前のモデルを削除（最新＋起点のみ保持してDocker容量を節約）
+    #    ※ 起点モデル（CURRENT_MODEL の初期値）は削除しない
+    PREV_STEP_INDEX=$((STEP_INDEX - 1))
+    PREV_MODEL="/opt/ml/model/v${VERSION_PREFIX}.${PREV_STEP_INDEX}"
+    INITIAL_MODEL="/opt/ml/model/v2.1"  # 起点モデル（これは常に保持）
+    if [ "${PREV_MODEL}" != "${INITIAL_MODEL}" ] && [ "${PREV_MODEL}" != "/opt/ml/model/v2" ]; then
+        echo "[INFO] 古いモデル ${PREV_MODEL} を削除してディスク容量を回収します..."
+        docker compose run --rm dev bash -c "rm -rf ${PREV_MODEL}"
+    fi
 
     # 次のループのベースモデルを更新
     CURRENT_MODEL="${NEXT_MODEL}"

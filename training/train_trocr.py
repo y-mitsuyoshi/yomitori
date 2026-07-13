@@ -73,8 +73,12 @@ def build_multilingual_model(base_model: str, decoder_tokenizer: str):
     model = VisionEncoderDecoderModel.from_pretrained(base_model)
     processor = TrOCRProcessor.from_pretrained(base_model)
 
-    # 継続学習かどうかを判定（ベースモデルがローカルディレクトリの場合）
-    is_continuation = Path(base_model).exists() and (Path(base_model) / "tokenizer.json").exists()
+    # 継続学習かどうかを判定
+    # training_info.json は当スクリプトが学習完了時に書き出すファイルであり、
+    # ファインチューニング済みモデルに確実に存在する。
+    # ※ BertJapaneseTokenizer は tokenizer.json を生成しないため、
+    #   tokenizer.json での判定は不可。
+    is_continuation = Path(base_model).is_dir() and (Path(base_model) / "training_info.json").exists()
 
     if is_continuation:
         # 継続学習: 保存済みのトークナイザーをそのまま使用（語彙リサイズ不要）
@@ -182,7 +186,7 @@ def main() -> int:
 
     # 学習率の自動設定（継続学習の場合は低くする）
     from pathlib import Path
-    is_continuation = Path(args.base_model).exists() and (Path(args.base_model) / "tokenizer.json").exists()
+    is_continuation = Path(args.base_model).is_dir() and (Path(args.base_model) / "training_info.json").exists()
     if args.learning_rate is None:
         args.learning_rate = 1e-5 if is_continuation else 5e-5
         logger.info("  Auto learning_rate: %s (continuation=%s)", args.learning_rate, is_continuation)
