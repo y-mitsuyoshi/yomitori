@@ -131,6 +131,8 @@ print(f'Marge complete. Total lines: {len(main_labels)}')
     # E. 学習データの削除（空き容量確保）
     echo "[INFO] イテレーション ${i} の学習が完了しました。ディスク容量解放のため合成データを削除します..."
     rm -rf "${TEMP_DIR}" "${TEMP_KANJI_DIR}"
+    # 新しいモデルフォルダ内の不要なチェックポイント（一時保存用）も削除してDocker容量を節約
+    docker compose run --rm dev bash -c "rm -rf ${NEXT_MODEL}/checkpoint-*"
     echo "[INFO] ディスク容量解放完了。"
 
     # 次のループのベースモデルを更新
